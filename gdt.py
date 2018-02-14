@@ -5,9 +5,9 @@ import os
 import nsync
 import re
 
-DEFAULT_TARGET_IP = "192.168.1.26"
+DEFAULT_TARGET_IP = "192.168.33.42"
 DEFAULT_TARGET_DEBUG_PORT = "8000"
-DEFAULT_TARGET_PASSWORD = "#Pasa3Ford"
+DEFAULT_TARGET_PASSWORD = "vagrant"
 DEFAULT_QNX_SDK = "D:\\Projects\\MY20\\QNX_SDK"
 DEFAULT_GDB = "D:\\qnx700\\host\\win64\\x86_64\\usr\\bin\\ntoarmv7-gdb.exe"
 DEFAULT_SYMBOLS = "D:\\Projects\\Symbols"
