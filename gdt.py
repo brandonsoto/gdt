@@ -38,7 +38,7 @@ def generate_gdb_command_file(args):
     file.write('dir \n')
     file.write('set solib-search-path \n')
     file.write('set auto-solib-add on \n')
-    file.write('target qnx ' + DEFAULT_TARGET_IP + '\n')
+    file.write('target qnx ' + DEFAULT_TARGET_IP + ':' + DEFAULT_TARGET_DEBUG_PORT + '\n')
     file.write('attach \n')
     file.close()
 
@@ -67,10 +67,9 @@ def parse_args():
         default=DEFAULT_SYMBOLS,
         help="Path to debug symbols")
     parser.add_argument(
-        '-f',
         '--commands',
         type=str,
-        help="Path to GDB command file")
+        help="Path to GDB command file (This script will generate its own if not provided)")
     parser.add_argument(
         '-q',
         '--qnx',
