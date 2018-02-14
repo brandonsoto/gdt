@@ -37,19 +37,22 @@ def get_service_pid(service):
     else:
         return ""
 
+def extract_service_name(service_path):
+    start_index = service_path.rfind("\\") + 1
+    end_index = service_path.rfind(".")
+    return service_path[start_index:end_index]
+
 def generate_gdb_command_file(args):
     # TODO(brandon): need to add correct arguments to these commands
     file = open(command_file, 'w')
-    file.write('file ' + args.symbols + '\n')
-    # file.write('dir \n')
-    file.write('set sysroot ' + SOLIB_SEARCH_PATH + '\n')
     file.write('set solib-search-path ' + SOLIB_SEARCH_PATH + '\n')
     file.write('set auto-solib-add on\n')
+    file.write('file ' + args.module + '\n')
     if args.core:
         file.write('core-file ' + args.core + '\n')
     else:
         file.write('target qnx ' + DEFAULT_TARGET_IP + ':' + DEFAULT_TARGET_DEBUG_PORT + '\n')
-        file.write('attach ' + get_service_pid(args.module) + '\n')
+        file.write('attach ' + get_service_pid(extract_service_name(args.module)) + '\n')
     file.close()
 
 def validate_args(args):
@@ -71,7 +74,7 @@ def parse_args():
         '-m',
         '--module',
         type=str,
-        help="Path to module executable")
+        help="Path to module executable (ends in *.full or *.debug)")
     parser.add_argument(
         '-c',
         '--core',
