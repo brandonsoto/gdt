@@ -10,15 +10,17 @@ DEFAULT_TARGET_PASSWORD = "vagrant"
 DEFAULT_QNX_SDK = "D:\\Projects\\qnx600"
 DEFAULT_GDB = DEFAULT_QNX_SDK + "\\usr\\bin\\ntoarmv7-gdb.exe"
 DEFAULT_SYMBOLS = "D:\\Projects\\Symbols"
-COMMAND_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "commands.txt")
 
 RETURN_ERROR_FATAL = 1
 RETURN_ERROR_TEST_FAILURE = 2
 RETURN_SUCCESS = 0
 
+command_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "commands.txt")
+
 def run_gdb():
     try:
-        ret = subprocess.call(["gdb", "--command=" + COMMAND_FILE])
+        # TODO(brandon): change gdb when ready
+        ret = subprocess.call(["gdb", "--command=" + command_file])
         print "Debugging session ended successfully"
     except:
         subprocess.call("reset")
@@ -27,28 +29,33 @@ def run_gdb():
 
 def get_service_pid():
     # TODO: implement using nsync
-    pass
+    return 0
 
 def generate_gdb_command_file(args):
     # TODO(brandon): need to add correct arguments to these commands
-    file = open(COMMAND_FILE, 'w')
-    if args.core:
-        file.write('core-file ' + args.core + '\n')
+    file = open(command_file, 'w')
     file.write('file ' + DEFAULT_SYMBOLS + '\n')
     file.write('dir \n')
     file.write('set solib-search-path \n')
     file.write('set auto-solib-add on \n')
-    file.write('target qnx ' + DEFAULT_TARGET_IP + ':' + DEFAULT_TARGET_DEBUG_PORT + '\n')
-    file.write('attach \n')
+    if args.core:
+        file.write('core-file ' + args.core + '\n')
+    else:
+        file.write('target qnx ' + DEFAULT_TARGET_IP + ':' + DEFAULT_TARGET_DEBUG_PORT + '\n')
+        file.write('attach ' + str(get_service_pid()))
     file.close()
 
 def validate_args(args):
-    global COMMAND_FILE
+    global command_file
+
     if args.core and not args.module:
         print "ERROR: Must specify module when core file is provided"
         sys.exit(RETURN_ERROR_FATAL)
+
     if args.commands:
-        COMMAND_FILE = args.commands
+        command_file = args.commands
+    else:
+        generate_gdb_command_file(args)
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -91,8 +98,6 @@ def parse_args():
 def main():
     args = parse_args()
     validate_args(args)
-    generate_gdb_command_file(args)
-    get_service_pid()
     run_gdb()
 
 if __name__ == '__main__':
