@@ -43,9 +43,12 @@ def generate_gdb_command_file(args):
     file.close()
 
 def validate_args(args):
+    global COMMAND_FILE
     if args.core and not args.module:
         print "ERROR: Must specify module when core file is provided"
         sys.exit(RETURN_ERROR_FATAL)
+    if args.commands:
+        COMMAND_FILE = args.commands
 
 def parse_args():
     parser = argparse.ArgumentParser(
