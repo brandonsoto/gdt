@@ -1,9 +1,10 @@
 import argparse
 import json
-import nsync
 import os
+import re
 import subprocess
 import sys
+import telnetlib
 
 data = json.load(open('gdt_config.json'))
 
@@ -20,6 +21,51 @@ RETURN_ERROR_FATAL = 1
 
 command_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), data["commands_file_name"])
 
+
+# thanks to Blayne Dennis for this class
+class TelnetConnection:
+    TIMEOUT_SEC = None
+    PORT = 23
+    PROMPT = '# '
+    USER = 'root'
+    session = None
+
+    def __init__(self, ip, passwd, port=PORT):
+        self.connect(ip, port, passwd)
+
+    def __del__(self):
+        if self.session is not None:
+            self.session.close()
+
+    def close(self):
+        if self.session is not None:
+            self.session.close()
+
+    def readResponse(self, _prompt, use_timeout=True):
+        if use_timeout:
+            return self.session.read_until(_prompt, self.TIMEOUT_SEC)
+        else:
+            return self.session.read_until(_prompt)
+
+    def connect(self, ip, port, passwd):
+        try:
+            self.session = telnetlib.Telnet(ip, port, self.TIMEOUT_SEC)
+        except (socket.timeout, socket.error):
+            raise SimpleException('Telnet: Server doesn\'t respond')
+
+        self.readResponse('login: ')
+        self.session.write('{}\n'.format(self.USER))
+        self.readResponse('Password:')
+        self.session.write('{}\n'.format(passwd))
+        resp = self.readResponse(self.PROMPT)
+        if resp[-2:] != self.PROMPT:
+            raise SimpleException('Telnet: Username or password invalid')
+
+    def sendCommand(self, cmd, use_timeout=True):
+        self.session.write('{}\n'.format(cmd))
+        return self.readResponse(self.PROMPT, use_timeout)
+
+
 def run_gdb(gdb_path):
     print "Starting gdb..."
     try:
@@ -32,7 +78,7 @@ def run_gdb(gdb_path):
 
 
 def get_service_pid(ip_address, password, service):
-    telnet = nsync.TelnetConnection(ip=ip_address, passwd=password)
+    telnet = TelnetConnection(ip=ip_address, passwd=password)
     command_output = telnet.sendCommand("ps -A | grep " + service)
     print "the output = ", command_output
     pid_list = re.findall(r'\b\d+\b', command_output)
@@ -154,7 +200,7 @@ def main():
     else:
         generate_gdb_command_file(args)
 
-    run_gdb(args.gdb_path)
+    run_gdb(args.gdb)
     print "Done!"
 
 
