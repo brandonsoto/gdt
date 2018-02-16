@@ -1,0 +1,10 @@
+{
+    "target_ip": "192.168.1.26",
+    "target_password": "vagrant",
+    "target_debug_port": "8000",
+    "gdb_path": "D:\\qnx700\\host\\win64\\x86_64\\usr\\bin\\ntoarmv7-gdb.exe",
+    "project_path": "D:\\Projects\\MY20",
+    "qnx_sdk": "D:\\Projects\\MY20\\QNX_SDK",
+    "symbols_path": "D:\\Projects\\Symbols",
+    "commands_file_name": "commands.txt"
+}
