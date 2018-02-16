@@ -20,11 +20,10 @@ RETURN_ERROR_FATAL = 1
 
 command_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), data["commands_file_name"])
 
-
-def run_gdb():
+def run_gdb(gdb_path):
     print "Starting gdb..."
     try:
-        subprocess.call([DEFAULT_GDB, "--command=" + command_file])
+        subprocess.call([gdb_path, "--command=" + command_file])
         print "Debugging session ended successfully"
     except Exception as exception:
         subprocess.call("reset")
@@ -35,7 +34,8 @@ def run_gdb():
 def get_service_pid(ip_address, password, service):
     telnet = nsync.TelnetConnection(ip=ip_address, passwd=password)
     command_output = telnet.sendCommand("ps -A | grep " + service)
-    pid_list = command_output.findall(r'\b\d+\b', command_output)
+    print "the output = ", command_output
+    pid_list = re.findall(r'\b\d+\b', command_output)
     if len(pid_list) > 0:
         return pid_list[0]
     else:
@@ -43,7 +43,12 @@ def get_service_pid(ip_address, password, service):
 
 
 def extract_service_name(service_path):
-    return os.path.split(service_path)[1]
+    filename = os.path.split(service_path)[1]
+    end_index = filename.rfind(".")
+    print "filename =", filename
+    service_name = filename[:end_index]
+    print "service name =", service_name
+    return service_name
 
 
 def generate_gdb_command_file(args):
@@ -149,7 +154,7 @@ def main():
     else:
         generate_gdb_command_file(args)
 
-    run_gdb()
+    run_gdb(args.gdb_path)
     print "Done!"
 
 
