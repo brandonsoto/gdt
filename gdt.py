@@ -22,6 +22,7 @@ command_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), data["co
 
 
 def run_gdb():
+    print "Starting gdb..."
     try:
         subprocess.call([DEFAULT_GDB, "--command=" + command_file])
         print "Debugging session ended successfully"
@@ -46,6 +47,7 @@ def extract_service_name(service_path):
 
 
 def generate_gdb_command_file(args):
+    print "Generating gdb command file..."
     # TODO(brandon): need to figure out best way to generate solib-search-path
     # TODO(brandon): need to search for src directories based on project path - this will generate dir variable
     file = open(command_file, 'w')
@@ -58,15 +60,19 @@ def generate_gdb_command_file(args):
         file.write('target qnx ' + args.ip + ':' + args.port_debug + '\n')
         file.write('attach ' + get_service_pid(args.ip, args.password, extract_service_name(args.module)) + '\n')
     file.close()
+    print "Finished generating gdb command file"
 
 
 def validate_args(args):
+    print "Validating arguments..."
     if args.core and not args.module:
         print "ERROR: Must specify module when core file is provided"
         sys.exit(RETURN_ERROR_FATAL)
+    print "Finished validating arguments"
 
 
 def parse_args():
+    print "Parsing arguments..."
     parser = argparse.ArgumentParser(
         description='GDB Developer Tool: developer script to quickly and easily debug a remote target or core file.')
     parser.add_argument(
@@ -128,6 +134,7 @@ def parse_args():
         default=DEFAULT_PROJECT_PATH,
         help="Path to the project (default: " + DEFAULT_PROJECT_PATH + ")")
     args = parser.parse_args()
+    print "Finished parsing arguments"
     return args
 
 
@@ -143,6 +150,7 @@ def main():
         generate_gdb_command_file(args)
 
     run_gdb()
+    print "Done!"
 
 
 if __name__ == '__main__':
