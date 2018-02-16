@@ -116,28 +116,28 @@ def generate_gdb_command_file(args):
 
 def validate_args(args):
     print "Validating arguments..."
-    if args.core and not os.path.exists(args.core):
+    if args.core and not os.path.isfile(args.core):
         print "ERROR: core does not exist - (", args.core, ")"
         sys.exit(RETURN_ERROR_FATAL)
     elif args.core and not args.module:
         print "ERROR: Must specify module (-m) when core file is provided"
         sys.exit(RETURN_ERROR_FATAL)
-    elif args.module and not os.path.exists(args.module):
+    elif args.module and not os.path.isfile(args.module):
         print "ERROR: module does not exist - (", args.module, ")"
         sys.exit(RETURN_ERROR_FATAL)
-    elif args.symbols and not os.path.exists(args.symbols):
+    elif args.symbols and not os.path.isdir(args.symbols):
         print "ERROR: symbols path does not exist - (", args.symbols, ")"
         sys.exit(RETURN_ERROR_FATAL)
-    elif args.qnx and not os.path.exists(args.qnx):
+    elif args.qnx and not os.path.isdir(args.qnx):
         print "ERROR: qnx does not exist - (", args.qnx, ")"
         sys.exit(RETURN_ERROR_FATAL)
-    elif args.gdb and not os.path.exists(args.gdb):
+    elif args.gdb and not os.path.isfile(args.gdb):
         print "ERROR: gdb does not exist - (", args.gdb, ")"
         sys.exit(RETURN_ERROR_FATAL)
-    elif args.project_path and not os.path.exists(args.project_path):
+    elif args.project_path and not os.path.isdir(args.project_path):
         print "ERROR: project path does not exist - (", args.project_path, ")"
         sys.exit(RETURN_ERROR_FATAL)
-    elif args.commands and not os.path.exists(args.commands):
+    elif args.commands and not os.path.isfile(args.commands):
         print "ERROR: command file does not exist - (", args.commands, ")"
         sys.exit(RETURN_ERROR_FATAL)
     print "Finished validating arguments"
