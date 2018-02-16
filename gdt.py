@@ -1,6 +1,6 @@
 import argparse
 import json
-# import nsync
+import nsync
 import os
 import subprocess
 import sys
