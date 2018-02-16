@@ -120,7 +120,7 @@ def validate_args(args):
         print "ERROR: core does not exist - (", args.core, ")"
         sys.exit(RETURN_ERROR_FATAL)
     elif args.core and not args.module:
-        print "ERROR: Must specify module when core file is provided"
+        print "ERROR: Must specify module (-m) when core file is provided"
         sys.exit(RETURN_ERROR_FATAL)
     elif args.module and not os.path.exists(args.module):
         print "ERROR: module does not exist - (", args.module, ")"
