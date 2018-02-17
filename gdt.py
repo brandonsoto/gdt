@@ -40,7 +40,7 @@ class Config:
     def validate(self):
         print "Validating configuration..."
 
-        if self.core_path and not self.module_path:
+        if self.core_path and not self.module_path: # FIXME: this will fail if the user specifies module in config file
             raise Exception("must specify module (-m) when core file is provided")
 
         for file_path in [self.module_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None]:
