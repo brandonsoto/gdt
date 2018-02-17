@@ -162,11 +162,11 @@ def parse_args():
     parser.add_argument(
         '--source',
         type=str,
-        help="Full paths to source files (default: separate paths with ';')")
+        help="Full paths to source files (separate paths with ';')")
     parser.add_argument(
         '--commands',
         type=str,
-        help="Full path to GDB command file (This script will generate its own if not provided)")
+        help="Full path to GDB command file (this script will generate its own if not provided)")
     args = parser.parse_args()
     return args
 
