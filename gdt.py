@@ -11,12 +11,12 @@ RETURN_ERROR_FATAL = 1
 
 def is_dir(path):
     if path and not os.path.isdir(path):
-        raise Exception("ERROR: directory does not exist - " + path)
+        raise Exception("directory does not exist - " + path)
 
 
 def is_file(path):
     if path and not os.path.isfile(path):
-        raise Exception("ERROR: file does not exist - " + path)
+        raise Exception("file does not exist - " + path)
 
 
 class Config:
