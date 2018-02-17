@@ -153,20 +153,20 @@ def parse_args():
         '-m',
         '--module',
         type=str,
-        help="Path to module executable (ends in *.full or *.debug)")
+        help="Full path to module executable (ends in *.full or *.debug)")
     parser.add_argument(
         '-c',
         '--core',
         type=str,
-        help="Path to core file (must be used with -m argument)")
+        help="Full path to core file (must be used with -m argument)")
     parser.add_argument(
         '--source',
         type=str,
-        help="Paths to source files (default: separate paths with ';')")
+        help="Full paths to source files (default: separate paths with ';')")
     parser.add_argument(
         '--commands',
         type=str,
-        help="Path to GDB command file (This script will generate its own if not provided)")
+        help="Full path to GDB command file (This script will generate its own if not provided)")
     args = parser.parse_args()
     return args
 
