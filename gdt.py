@@ -71,8 +71,7 @@ class TelnetConnection:
         self.connect()
 
     def __del__(self):
-        if self.session is not None:
-            self.session.close()
+        self.session.close()
 
     def close(self):
         if self.session is not None:
