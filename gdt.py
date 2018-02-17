@@ -7,12 +7,12 @@ import subprocess
 import telnetlib
 
 
-def is_dir(path):
+def verify_is_dir(path):
     if path and (not os.path.isabs(path) or not os.path.isdir(path)):
         raise Exception("directory does not exist - " + path)
 
 
-def is_file(path):
+def verify_is_file(path):
     if path and (not os.path.isabs(path) or not os.path.isfile(path)):
         raise Exception("file does not exist - " + path)
 
@@ -44,10 +44,10 @@ class Config:
             raise Exception("must specify module (-m) when core file is provided")
 
         for file_path in [self.module_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None]:
-            is_file(file_path)
+            verify_is_file(file_path)
 
         for dir_path in [self.symbols_path, self.qnx_sdk_path, self.project_path]:
-            is_dir(dir_path)
+            verify_is_dir(dir_path)
 
         print "Finished validating configuration"
 
