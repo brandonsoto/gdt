@@ -74,7 +74,7 @@ class TelnetConnection:
         self.close()
 
     def close(self):
-        if self.session is not None:
+        if self.session:
             self.session.close()
 
     def read_response(self, prompt):
