@@ -6,8 +6,6 @@ import socket
 import subprocess
 import telnetlib
 
-RETURN_ERROR_FATAL = 1
-
 
 def is_dir(path):
     if path and not os.path.isdir(path):
