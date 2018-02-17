@@ -93,8 +93,8 @@ class TelnetConnection:
         return self.read_response(self.prompt)
 
     # TODO(brandon): what is the best way to handle multiple results?
-    def get_pid_of(self, service_name):
-        cmd_output = self.send_command("ps -A | grep -w " + service_name)
+    def get_pid_of(self, service):
+        cmd_output = self.send_command("ps -A | grep -w " + service)
         pid_list = re.findall(r'\b\d+\b', cmd_output)
 
         if len(pid_list) > 0:
@@ -115,10 +115,10 @@ def run_gdb(gdb_path, command_file):
 
 
 def get_service_pid(config):
-    service_name = extract_service_name(config.module_path)
+    service = extract_service_name(config.module_path)
     telnet = TelnetConnection(ip=config.target_ip, user=config.target_user, password=config.target_password,
                               prompt=config.target_prompt)
-    return telnet.get_pid_of(service_name)
+    return telnet.get_pid_of(service)
 
 
 def extract_service_name(service_path):
