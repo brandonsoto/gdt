@@ -103,10 +103,12 @@ def run_gdb(gdb_path, command_file):
         print "Debugging session ended in an error: " + exception.message
 
 
-# TODO(brandon): what is the best way to handle multiple results? This can be easily broken
-def get_service_pid(config, service_name):
-    telnet = TelnetConnection(ip=config.target_ip, user=config.target_user, password=config.target_password, prompt=config.target_prompt)
-    command_output = telnet.send_command("ps -A | grep " + service_name)
+# TODO(brandon): what is the best way to handle multiple results?
+def get_service_pid(config):
+    service_name = extract_service_name(config.module_path)
+    telnet = TelnetConnection(ip=config.target_ip, user=config.target_user, password=config.target_password,
+                              prompt=config.target_prompt)
+    command_output = telnet.send_command("ps -A | grep -w " + service_name)
     pid_list = re.findall(r'\b\d+\b', command_output)
 
     if len(pid_list) > 0:
@@ -124,11 +126,6 @@ def extract_service_name(service_path):
         return filename
 
 
-def service_has_pid(config):
-    service_name = extract_service_name(config.module_path)
-    return get_service_pid(config, service_name)
-
-
 def generate_gdb_command_file(config):
     print "Generating gdb command file..."
     # TODO(brandon): need to figure out best way to generate solib-search-path
@@ -140,10 +137,9 @@ def generate_gdb_command_file(config):
     if config.core_path:
         cmd_file.write('core-file ' + config.core_path + '\n')
     else:
-        # cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n')
+        # cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n') TODO: reenable for qnx target
         cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
-        # TODO(brandon): refactor/clean up these pid functions
-        pid = service_has_pid(config)
+        pid = get_service_pid(config)
         if pid:
             cmd_file.write('attach ' + pid + '\n')
     cmd_file.close()
