@@ -126,8 +126,7 @@ def extract_service_name(service_path):
 
 def service_has_pid(config):
     service_name = extract_service_name(config.module_path)
-    pid = get_service_pid(config.target_ip, config.target_password, config.module_path) if service_name else None
-    return True, pid if pid else False, pid
+    return get_service_pid(config.target_ip, config.target_password, config.module_path) if service_name else None
 
 
 def generate_gdb_command_file(config):
@@ -143,8 +142,8 @@ def generate_gdb_command_file(config):
     else:
         cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n')
         pid = service_has_pid(config)
-        if pid[0]:
-            cmd_file.write('attach ' + pid[1] + '\n')
+        if pid:
+            cmd_file.write('attach ' + pid + '\n')
     cmd_file.close()
     print "Finished generating gdb command file"
 
