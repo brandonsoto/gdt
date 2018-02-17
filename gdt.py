@@ -4,7 +4,6 @@ import os
 import re
 import socket
 import subprocess
-import sys
 import telnetlib
 
 RETURN_ERROR_FATAL = 1
@@ -111,7 +110,6 @@ def run_gdb(gdb_path, command_file):
     except Exception as exception:
         subprocess.call("reset")
         print "Debugging session ended in an error: " + exception.message
-        sys.exit(RETURN_ERROR_FATAL)
 
 
 def get_service_pid(ip, password, service):
