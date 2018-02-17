@@ -114,7 +114,6 @@ def run_gdb(gdb_path, command_file):
         print "Debugging session ended in an error: " + exception.message
 
 
-# TODO(brandon): what is the best way to handle multiple results?
 def get_service_pid(config):
     service_name = extract_service_name(config.module_path)
     telnet = TelnetConnection(ip=config.target_ip, user=config.target_user, password=config.target_password,
