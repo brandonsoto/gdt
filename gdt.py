@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import re
+import socket
 import subprocess
 import sys
 import telnetlib
@@ -24,14 +25,14 @@ command_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), data["co
 
 # thanks to Blayne Dennis for this class
 class TelnetConnection:
-    TIMEOUT_SEC = None
+    TIMEOUT_SEC = 10
     PORT = 23
-    PROMPT = '# '
-    USER = 'root'
+    PROMPT = data["target_prompt"]
+    USER = data["target_username"]
     session = None
 
-    def __init__(self, ip, passwd, port=PORT):
-        self.connect(ip, port, passwd)
+    def __init__(self, ip, password):
+        self.connect(ip, self.PORT, password)
 
     def __del__(self):
         if self.session is not None:
@@ -41,29 +42,26 @@ class TelnetConnection:
         if self.session is not None:
             self.session.close()
 
-    def readResponse(self, _prompt, use_timeout=True):
-        if use_timeout:
-            return self.session.read_until(_prompt, self.TIMEOUT_SEC)
-        else:
-            return self.session.read_until(_prompt)
+    def read_response(self, _prompt):
+        return self.session.read_until(_prompt, self.TIMEOUT_SEC)
 
-    def connect(self, ip, port, passwd):
+    def connect(self, ip, port, password):
         try:
             self.session = telnetlib.Telnet(ip, port, self.TIMEOUT_SEC)
         except (socket.timeout, socket.error):
-            raise SimpleException('Telnet: Server doesn\'t respond')
+            raise Exception("Telnet: Server doesn't respond")
 
-        self.readResponse('login: ')
+        self.read_response('login: ')
         self.session.write('{}\n'.format(self.USER))
-        self.readResponse('Password:')
-        self.session.write('{}\n'.format(passwd))
-        resp = self.readResponse(self.PROMPT)
+        self.read_response('Password:')
+        self.session.write('{}\n'.format(password))
+        resp = self.read_response(self.PROMPT)
         if resp[-2:] != self.PROMPT:
-            raise SimpleException('Telnet: Username or password invalid')
+            raise Exception('Telnet: Username or password invalid')
 
-    def sendCommand(self, cmd, use_timeout=True):
+    def send_command(self, cmd):
         self.session.write('{}\n'.format(cmd))
-        return self.readResponse(self.PROMPT, use_timeout)
+        return self.read_response(self.PROMPT)
 
 
 def run_gdb(gdb_path):
@@ -78,8 +76,8 @@ def run_gdb(gdb_path):
 
 
 def get_service_pid(ip_address, password, service):
-    telnet = TelnetConnection(ip=ip_address, passwd=password)
-    command_output = telnet.sendCommand("ps -A | grep " + service)
+    telnet = TelnetConnection(ip=ip_address, password=password)
+    command_output = telnet.send_command("ps -A | grep " + service)
     print "the output = ", command_output
     pid_list = re.findall(r'\b\d+\b', command_output)
     if len(pid_list) > 0:

@@ -1,7 +1,9 @@
 {
     "target_ip": "192.168.1.26",
+    "target_username": "root",
     "target_password": "vagrant",
     "target_debug_port": "8000",
+    "target_prompt": "# ",
     "gdb_path": "D:\\qnx700\\host\\win64\\x86_64\\usr\\bin\\ntoarmv7-gdb.exe",
     "project_path": "D:\\Projects\\MY20",
     "qnx_sdk": "D:\\Projects\\MY20\\QNX_SDK",
