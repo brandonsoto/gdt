@@ -42,18 +42,13 @@ class Config:
         print "Validating configuration..."
 
         if self.core_path and not self.module_path:
-            raise Exception("ERROR: Must specify module (-m) when core file is provided")
-        elif not self.generate_command_file:
-            is_file(self.command_file)
+            raise Exception("must specify module (-m) when core file is provided")
 
-        is_file(self.module_path)
-        is_file(self.gdb_path)
+        for file_path in [self.module_path, self.gdb_path, self.command_file if not self.generate_command_file else None]:
+            is_file(file_path)
 
-        is_dir(self.core_path)
-        is_dir(self.module_path)
-        is_dir(self.symbols_path)
-        is_dir(self.qnx_sdk_path)
-        is_dir(self.project_path)
+        for dir_path in [self.core_path, self.module_path, self.symbols_path, self.qnx_sdk_path, self.project_path]:
+            is_dir(dir_path)
 
         print "Finished validating configuration"
 
