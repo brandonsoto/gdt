@@ -1,7 +1,9 @@
-commands.txt
+gdb_commands.txt
 
+Project/
 .vscode/
 .idea/
+.vagrant/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
