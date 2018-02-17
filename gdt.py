@@ -7,32 +7,71 @@ import subprocess
 import sys
 import telnetlib
 
-data = json.load(open('gdt_config.json'))
-
-DEFAULT_TARGET_IP = data["target_ip"]
-DEFAULT_TARGET_PASSWORD = data["target_password"]
-DEFAULT_TARGET_DEBUG_PORT = data["target_debug_port"]
-DEFAULT_QNX_SDK = data["qnx_sdk"]
-DEFAULT_GDB = data["gdb_path"]
-DEFAULT_SYMBOLS = data["symbols_path"]
-DEFAULT_SOLIB_SEARCH_PATH = data["symbols_path"]
-DEFAULT_PROJECT_PATH = data["project_path"]
-
 RETURN_ERROR_FATAL = 1
 
-command_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), data["commands_file_name"])
+
+def is_dir(path):
+    if path and not os.path.isdir(path):
+        raise Exception("ERROR: directory does not exist - " + path)
+
+
+def is_file(path):
+    if path and not os.path.isfile(path):
+        raise Exception("ERROR: file does not exist - " + path)
+
+
+class Config:
+    def __init__(self, args):
+        data = json.load(open('gdt_config.json'))
+
+        self.module_path = args.module if args.module else data["module_path"]
+        self.module_path = None if not self.module_path or len(self.module_path) == 0 else self.module_path
+        self.core_path = args.core
+        self.symbols_path = data["symbols_path"]
+        self.generate_command_file = not args.commands
+        self.command_file = args.commands if args.commands else os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdb_commands.txt")
+        self.target_ip = data["target_ip"]
+        self.target_user = data["target_user"]
+        self.target_password = data["target_password"]
+        self.target_debug_port = data["target_debug_port"]
+        self.target_prompt = data["target_prompt"]
+        self.gdb_path = data["gdb_path"]
+        self.project_path = data["project_path"]
+        self.qnx_sdk_path = data["qnx_sdk_path"]
+        self.solib_search_path = ""
+        self.validate()
+
+    def validate(self):
+        print "Validating configuration..."
+
+        if self.core_path and not self.module_path:
+            raise Exception("ERROR: Must specify module (-m) when core file is provided")
+        elif not self.generate_command_file:
+            is_file(self.command_file)
+
+        is_file(self.module_path)
+        is_file(self.gdb_path)
+
+        is_dir(self.core_path)
+        is_dir(self.module_path)
+        is_dir(self.symbols_path)
+        is_dir(self.qnx_sdk_path)
+        is_dir(self.project_path)
+
+        print "Finished validating configuration"
 
 
 # thanks to Blayne Dennis for this class
 class TelnetConnection:
-    TIMEOUT_SEC = 10
-    PORT = 23
-    PROMPT = data["target_prompt"]
-    USER = data["target_username"]
-    session = None
-
-    def __init__(self, ip, password):
-        self.connect(ip, self.PORT, password)
+    def __init__(self, ip, user, password, prompt):
+        self.TIMEOUT_SEC = 10
+        self.PORT = 23
+        self.ip = ip
+        self.user = user
+        self.password = password
+        self.session = None
+        self.prompt = prompt
+        self.connect()
 
     def __del__(self):
         if self.session is not None:
@@ -42,29 +81,29 @@ class TelnetConnection:
         if self.session is not None:
             self.session.close()
 
-    def read_response(self, _prompt):
-        return self.session.read_until(_prompt, self.TIMEOUT_SEC)
+    def read_response(self, prompt):
+        return self.session.read_until(prompt, self.TIMEOUT_SEC)
 
-    def connect(self, ip, port, password):
+    def connect(self):
         try:
-            self.session = telnetlib.Telnet(ip, port, self.TIMEOUT_SEC)
+            self.session = telnetlib.Telnet(self.ip, self.PORT, self.TIMEOUT_SEC)
         except (socket.timeout, socket.error):
             raise Exception("Telnet: Server doesn't respond")
 
         self.read_response('login: ')
-        self.session.write('{}\n'.format(self.USER))
+        self.session.write('{}\n'.format(self.user))
         self.read_response('Password:')
-        self.session.write('{}\n'.format(password))
-        resp = self.read_response(self.PROMPT)
-        if resp[-2:] != self.PROMPT:
+        self.session.write('{}\n'.format(self.password))
+        resp = self.read_response(self.prompt)
+        if resp[-2:] != self.prompt:
             raise Exception('Telnet: Username or password invalid')
 
     def send_command(self, cmd):
         self.session.write('{}\n'.format(cmd))
-        return self.read_response(self.PROMPT)
+        return self.read_response(self.prompt)
 
 
-def run_gdb(gdb_path):
+def run_gdb(gdb_path, command_file):
     print "Starting gdb..."
     try:
         subprocess.call([gdb_path, "--command=" + command_file])
@@ -75,74 +114,52 @@ def run_gdb(gdb_path):
         sys.exit(RETURN_ERROR_FATAL)
 
 
-def get_service_pid(ip_address, password, service):
-    telnet = TelnetConnection(ip=ip_address, password=password)
+def get_service_pid(ip, password, service):
+    telnet = TelnetConnection(ip=ip, password=password)
     command_output = telnet.send_command("ps -A | grep " + service)
-    print "the output = ", command_output
     pid_list = re.findall(r'\b\d+\b', command_output)
+
     if len(pid_list) > 0:
         return pid_list[0]
     else:
-        return ""
+        return None
 
 
 def extract_service_name(service_path):
     filename = os.path.split(service_path)[1]
     end_index = filename.rfind(".")
-    print "filename =", filename
-    service_name = filename[:end_index]
-    print "service name =", service_name
-    return service_name
+    if end_index in range(0, len(filename)):
+        return filename[:end_index]
+    else:
+        return None
 
 
-def generate_gdb_command_file(args):
+def service_has_pid(config):
+    service_name = extract_service_name(config.module_path)
+    pid = get_service_pid(config.target_ip, config.target_password, config.module_path) if service_name else None
+    return True, pid if pid else False, pid
+
+
+def generate_gdb_command_file(config):
     print "Generating gdb command file..."
     # TODO(brandon): need to figure out best way to generate solib-search-path
     # TODO(brandon): need to search for src directories based on project path - this will generate dir variable
-    file = open(command_file, 'w')
-    file.write('set solib-search-path ' + args.solib_search_path + '\n')
-    file.write('set auto-solib-add on\n')
-    file.write('file ' + args.module + '\n')
-    if args.core:
-        file.write('core-file ' + args.core + '\n')
+    cmd_file = open(config.command_file, 'w')
+    cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
+    cmd_file.write('set auto-solib-add on\n')
+    cmd_file.write('file ' + config.module_path + '\n')
+    if config.core_path:
+        cmd_file.write('core-file ' + config.core_path + '\n')
     else:
-        file.write('target qnx ' + args.ip + ':' + args.port_debug + '\n')
-        file.write('attach ' + get_service_pid(args.ip, args.password, extract_service_name(args.module)) + '\n')
-    file.close()
+        cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n')
+        pid = service_has_pid(config)
+        if pid[0]:
+            cmd_file.write('attach ' + pid[1] + '\n')
+    cmd_file.close()
     print "Finished generating gdb command file"
 
 
-def validate_args(args):
-    print "Validating arguments..."
-    if args.core and not os.path.isfile(args.core):
-        print "ERROR: core does not exist - (", args.core, ")"
-        sys.exit(RETURN_ERROR_FATAL)
-    elif args.core and not args.module:
-        print "ERROR: Must specify module (-m) when core file is provided"
-        sys.exit(RETURN_ERROR_FATAL)
-    elif args.module and not os.path.isfile(args.module):
-        print "ERROR: module does not exist - (", args.module, ")"
-        sys.exit(RETURN_ERROR_FATAL)
-    elif args.symbols and not os.path.isdir(args.symbols):
-        print "ERROR: symbols path does not exist - (", args.symbols, ")"
-        sys.exit(RETURN_ERROR_FATAL)
-    elif args.qnx and not os.path.isdir(args.qnx):
-        print "ERROR: qnx does not exist - (", args.qnx, ")"
-        sys.exit(RETURN_ERROR_FATAL)
-    elif args.gdb and not os.path.isfile(args.gdb):
-        print "ERROR: gdb does not exist - (", args.gdb, ")"
-        sys.exit(RETURN_ERROR_FATAL)
-    elif args.project_path and not os.path.isdir(args.project_path):
-        print "ERROR: project path does not exist - (", args.project_path, ")"
-        sys.exit(RETURN_ERROR_FATAL)
-    elif args.commands and not os.path.isfile(args.commands):
-        print "ERROR: command file does not exist - (", args.commands, ")"
-        sys.exit(RETURN_ERROR_FATAL)
-    print "Finished validating arguments"
-
-
 def parse_args():
-    print "Parsing arguments..."
     parser = argparse.ArgumentParser(
         description='GDB Developer Tool: developer script to quickly and easily debug a remote target or core file.')
     parser.add_argument(
@@ -156,11 +173,6 @@ def parse_args():
         type=str,
         help="Path to core file (must be used with -m argument)")
     parser.add_argument(
-        '--symbols',
-        type=str,
-        default=DEFAULT_SYMBOLS,
-        help="Path to debug symbols (default: " + DEFAULT_SYMBOLS + ")")
-    parser.add_argument(
         '--source',
         type=str,
         help="Paths to source files (default: separate paths with ';')")
@@ -168,58 +180,18 @@ def parse_args():
         '--commands',
         type=str,
         help="Path to GDB command file (This script will generate its own if not provided)")
-    parser.add_argument(
-        '--qnx',
-        type=str,
-        default=DEFAULT_QNX_SDK,
-        help="Path to QNX SDK (default: " + DEFAULT_QNX_SDK + ")")
-    parser.add_argument(
-        '--gdb',
-        type=str,
-        default=DEFAULT_GDB,
-        help="Path to GDB executable (default: " + DEFAULT_GDB + ")")
-    parser.add_argument(
-        '--ip',
-        type=str,
-        default=DEFAULT_TARGET_IP,
-        help="Target's IP address (default: " + DEFAULT_TARGET_IP + ")")
-    parser.add_argument(
-        '--password',
-        type=str,
-        default=DEFAULT_TARGET_PASSWORD,
-        help="Target's login password (default: " + DEFAULT_TARGET_PASSWORD + ")")
-    parser.add_argument(
-        '--port-debug',
-        type=str,
-        default=DEFAULT_TARGET_DEBUG_PORT,
-        help="Target's debug port (default: " + DEFAULT_TARGET_DEBUG_PORT + ")")
-    parser.add_argument(
-        '--solib-search-path',
-        type=str,
-        default=DEFAULT_SOLIB_SEARCH_PATH,
-        help="Target's debug port (default: " + DEFAULT_SOLIB_SEARCH_PATH + ")")
-    parser.add_argument(
-        '--project-path',
-        type=str,
-        default=DEFAULT_PROJECT_PATH,
-        help="Path to the project (default: " + DEFAULT_PROJECT_PATH + ")")
     args = parser.parse_args()
-    print "Finished parsing arguments"
     return args
 
 
 def main():
-    global command_file
-
     args = parse_args()
-    validate_args(args)
+    config = Config(args)
 
-    if args.commands:
-        command_file = args.commands
-    else:
-        generate_gdb_command_file(args)
+    if config.generate_command_file:
+        generate_gdb_command_file(config)
 
-    run_gdb(args.gdb)
+    run_gdb(config.gdb_path, config.command_file)
     print "Done!"
 
 
