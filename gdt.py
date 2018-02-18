@@ -8,12 +8,12 @@ import telnetlib
 
 
 def verify_dir_exists(path):
-    if path and (not os.path.isabs(path) or not os.path.isdir(path)):
+    if path and not os.path.isdir(path):
         raise Exception("directory does not exist - " + path)
 
 
 def verify_file_exists(path):
-    if path and (not os.path.isabs(path) or not os.path.isfile(path)):
+    if path and not os.path.isfile(path):
         raise Exception("file does not exist - " + path)
 
 
@@ -103,7 +103,6 @@ class TelnetConnection:
             return None
 
 
-
 def run_gdb(gdb_path, command_file):
     print "Starting gdb..."
     try:
@@ -137,9 +136,9 @@ def generate_gdb_command_file(config):
     cmd_file = open(config.command_file, 'w')
     cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
     cmd_file.write('set auto-solib-add on\n')
-    cmd_file.write('file ' + config.module_path + '\n')
+    cmd_file.write('file ' + os.path.abspath(config.module_path) + '\n')
     if config.core_path:
-        cmd_file.write('core-file ' + config.core_path + '\n')
+        cmd_file.write('core-file ' + os.path.abspath(config.core_path) + '\n')
     else:
         # cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n') TODO: reenable for qnx target
         cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
