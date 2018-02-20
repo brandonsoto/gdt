@@ -119,7 +119,7 @@ def get_service_pid(config):
 
 def extract_service_name(service_path):
     filename = os.path.split(service_path)[1]
-    return filename.split(".")[0]
+    return filename.splitext(filename)[0]
 
 
 def generate_gdb_command_file(config):
