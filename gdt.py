@@ -40,9 +40,6 @@ class Config:
     def validate(self):
         print "Validating configuration..."
 
-        if self.core_path and not self.module_path: # FIXME: this will fail if the user specifies module in config file
-            raise Exception("must specify module (-m) when core file is provided")
-
         for file_path in [self.module_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None]:
             verify_file_exists(file_path)
 
@@ -156,20 +153,20 @@ def parse_args():
         '-m',
         '--module',
         type=str,
-        help="Full path to module executable (ends in *.full or *.debug)")
+        help="Relative or absolute path to module executable (ends in *.full or *.debug)")
     parser.add_argument(
         '-c',
         '--core',
         type=str,
-        help="Full path to core file (must be used with -m argument)")
+        help="Relative or absolute path to core file)")
     parser.add_argument(
         '--source',
         type=str,
-        help="Full paths to source files (separate paths with ';')")
+        help="Relative or absolute paths to source files (separate paths with ';')")
     parser.add_argument(
         '--commands',
         type=str,
-        help="Full path to GDB command file (this script will generate its own if not provided)")
+        help="Relative or absolute path to GDB command file (this script will generate its own if not provided)")
     args = parser.parse_args()
     return args
 
