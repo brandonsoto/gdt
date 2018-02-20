@@ -119,11 +119,7 @@ def get_service_pid(config):
 
 def extract_service_name(service_path):
     filename = os.path.split(service_path)[1]
-    end_index = filename.rfind(".")
-    if end_index in range(0, len(filename)):
-        return filename[:end_index]
-    else:
-        return filename
+    return filename.split(".")[0]
 
 
 def generate_gdb_command_file(config):
