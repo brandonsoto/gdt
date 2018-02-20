@@ -17,6 +17,23 @@ def verify_file_exists(path):
         raise Exception("file does not exist - " + path)
 
 
+def generate_solib_search_path(symbols_path):
+    solib_dirs = []
+    os.path.walk(symbols_path, check_files, solib_dirs)
+    return ";".join(solib_dirs)
+
+
+def check_files(solib_dirs, dirname, files):
+    for file in files:
+        if is_shared_library(file):
+            solib_dirs.append(dirname)
+            break
+
+
+def is_shared_library(path):
+    return path.endswith(".so")
+
+
 class Config:
     def __init__(self, args):
         data = json.load(open('gdt_config.json'))
@@ -34,7 +51,7 @@ class Config:
         self.gdb_path = data["gdb_path"]
         self.project_path = data["project_path"]
         self.qnx_sdk_path = data["qnx_sdk_path"]
-        self.solib_search_path = ""
+        self.solib_search_path = []
         self.validate()
 
     def validate(self):
@@ -45,6 +62,8 @@ class Config:
 
         for dir_path in [self.symbols_path, self.qnx_sdk_path, self.project_path]:
             verify_dir_exists(dir_path)
+
+        self.solib_search_path = generate_solib_search_path(self.symbols_path)
 
         print "Finished validating configuration"
 
@@ -91,7 +110,7 @@ class TelnetConnection:
 
     # TODO(brandon): what is the best way to handle multiple results?
     def get_pid_of(self, service):
-        cmd_output = self.send_command("ps -A | grep -w " + service)
+        cmd_output = self.send_command("ps -A | grep " + service)
         pid_list = re.findall(r'\b\d+\b', cmd_output)
 
         if len(pid_list) > 0:
@@ -119,7 +138,7 @@ def get_service_pid(config):
 
 def extract_service_name(service_path):
     filename = os.path.split(service_path)[1]
-    return filename.splitext(filename)[0]
+    return os.path.splitext(filename)[0]
 
 
 def generate_gdb_command_file(config):
@@ -129,12 +148,12 @@ def generate_gdb_command_file(config):
     cmd_file = open(config.command_file, 'w')
     cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
     cmd_file.write('set auto-solib-add on\n')
-    cmd_file.write('file ' + os.path.abspath(config.module_path) + '\n')
+    cmd_file.write('file ' + config.module_path + '\n')
     if config.core_path:
-        cmd_file.write('core-file ' + os.path.abspath(config.core_path) + '\n')
+        cmd_file.write('core-file ' + config.core_path + '\n')
     else:
-        # cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n') TODO: reenable for qnx target
-        cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
+        cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n') # TODO: reenable for qnx target
+        # cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
         pid = get_service_pid(config)
         if pid:
             cmd_file.write('attach ' + pid + '\n')
