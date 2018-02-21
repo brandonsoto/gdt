@@ -189,10 +189,6 @@ def parse_args():
         type=str,
         help="Relative or absolute path to core file)")
     parser.add_argument(
-        '--source',
-        type=str,
-        help="Relative or absolute paths to source files (separate paths with ';')")
-    parser.add_argument(
         '--commands',
         type=str,
         help="Relative or absolute path to GDB command file (this script will generate its own if not provided)")
