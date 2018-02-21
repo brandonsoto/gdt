@@ -59,7 +59,6 @@ class Config:
         self.target_prompt = data["target_prompt"]
         self.gdb_path = data["gdb_path"]
         self.project_path = data["project_path"]
-        self.qnx_sdk_path = data["qnx_sdk_path"]
         self.solib_search_path = ""
         self.source_search_path = ""
 
@@ -76,7 +75,7 @@ class Config:
         for file_path in [self.module_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None]:
             verify_file_exists(file_path)
 
-        for dir_path in [self.symbols_path, self.qnx_sdk_path, self.project_path]:
+        for dir_path in [self.symbols_path, self.project_path]:
             verify_dir_exists(dir_path)
 
         print "Finished validating configuration"
