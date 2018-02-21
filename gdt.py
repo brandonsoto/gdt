@@ -17,21 +17,30 @@ def verify_file_exists(path):
         raise Exception("file does not exist - " + path)
 
 
-def generate_solib_search_path(symbols_path):
-    solib_dirs = []
-    os.path.walk(symbols_path, check_files, solib_dirs)
-    return ";".join(solib_dirs)
+def generate_paths(root_path, unary_function):
+    paths = []
+    for root, dirs, files in os.walk(root_path):
+        for f in files:
+            if unary_function(f):
+                paths.append(root)
+                break
+    return ';'.join(paths)
 
 
-def check_files(solib_dirs, dirname, files):
-    for file in files:
-        if is_shared_library(file):
-            solib_dirs.append(dirname)
-            break
+def generate_solib_search_path(root_path):
+    return generate_paths(root_path, is_shared_library)
+
+
+def generate_source_search_path(root_path):
+    return generate_paths(root_path, is_cpp_file)
 
 
 def is_shared_library(path):
     return path.endswith(".so")
+
+
+def is_cpp_file(path):
+    return path.endswith(".cpp") or path.endswith(".cc") or path.endswith(".c")
 
 
 class Config:
@@ -51,8 +60,15 @@ class Config:
         self.gdb_path = data["gdb_path"]
         self.project_path = data["project_path"]
         self.qnx_sdk_path = data["qnx_sdk_path"]
-        self.solib_search_path = []
+        self.solib_search_path = ""
+        self.source_search_path = ""
+
         self.validate()
+        self.init_search_paths()
+
+    def init_search_paths(self):
+        self.solib_search_path = generate_solib_search_path(self.symbols_path)
+        self.source_search_path = generate_source_search_path(self.project_path)
 
     def validate(self):
         print "Validating configuration..."
@@ -62,8 +78,6 @@ class Config:
 
         for dir_path in [self.symbols_path, self.qnx_sdk_path, self.project_path]:
             verify_dir_exists(dir_path)
-
-        self.solib_search_path = generate_solib_search_path(self.symbols_path)
 
         print "Finished validating configuration"
 
@@ -149,6 +163,7 @@ def generate_gdb_command_file(config):
     cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
     cmd_file.write('set auto-solib-add on\n')
     cmd_file.write('file ' + config.module_path + '\n')
+    # cmd_file.write('dir ' + config.source_search_path + '\n')
     if config.core_path:
         cmd_file.write('core-file ' + config.core_path + '\n')
     else:
