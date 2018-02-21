@@ -36,7 +36,11 @@ def generate_source_search_path(root_path):
 
 
 def is_shared_library(path):
-    return path.endswith(".so")
+    lib_number = re.search(r'\d+$', path)
+    file_extension = ".so"
+    if lib_number is not None:
+        file_extension += "." + lib_number.group()
+    return path.endswith(file_extension)
 
 
 def is_cpp_file(path):
