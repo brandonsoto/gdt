@@ -175,10 +175,6 @@ def generate_gdb_command_file(config):
     cmd_file = open(config.command_file, 'w')
     cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
     cmd_file.write('set auto-solib-add on\n')
-
-    if config.module_path:
-        cmd_file.write('file ' + config.module_path + '\n')
-
     cmd_file.write('dir ' + config.source_search_path + '\n')
 
     if config.core_path:
@@ -186,8 +182,9 @@ def generate_gdb_command_file(config):
     else:
         # cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n') # TODO: reenable for qnx target
         cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
-        # TODO: clean this up
+
         if config.module_path:
+            cmd_file.write('file ' + config.module_path + '\n')
             pid = get_service_pid(config)
             if pid:
                 cmd_file.write('attach ' + pid + '\n')
