@@ -17,7 +17,7 @@ def verify_file_exists(path):
         raise Exception("file does not exist - " + path)
 
 
-def generate_paths(root_path, excluded_dirs, unary_function):
+def generate_paths(root_path, excluded_dirs, unary_function, separator):
     paths = []
     for root, dirs, files in os.walk(root_path, topdown=True):
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
@@ -25,15 +25,15 @@ def generate_paths(root_path, excluded_dirs, unary_function):
             if unary_function(f):
                 paths.append(os.path.abspath(root))
                 break
-    return ';'.join(paths)
+    return separator.join(paths)
 
 
 def generate_solib_search_path(root_path, excluded_dirs):
-    return generate_paths(root_path, excluded_dirs, is_shared_library)
+    return generate_paths(root_path, excluded_dirs, is_shared_library, ";")
 
 
 def generate_source_search_path(root_path, excluded_dirs):
-    return generate_paths(root_path, excluded_dirs, is_cpp_file)
+    return generate_paths(root_path, excluded_dirs, is_cpp_file, ":")
 
 
 def is_shared_library(path):
@@ -173,19 +173,26 @@ def extract_service_name(service_path):
 
 def generate_gdb_command_file(config):
     print "Generating gdb command file..."
+
     cmd_file = open(config.command_file, 'w')
     cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
     cmd_file.write('set auto-solib-add on\n')
-    cmd_file.write('file ' + config.module_path + '\n')
+
+    if config.module_path:
+        cmd_file.write('file ' + config.module_path + '\n')
+
     cmd_file.write('dir ' + config.source_search_path + '\n')
+
     if config.core_path:
         cmd_file.write('core-file ' + config.core_path + '\n')
     else:
-        cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n') # TODO: reenable for qnx target
-        # cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
-        pid = get_service_pid(config)
-        if pid:
-            cmd_file.write('attach ' + pid + '\n')
+        # cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n') # TODO: reenable for qnx target
+        cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
+        # TODO: clean this up
+        if config.module_path:
+            pid = get_service_pid(config)
+            if pid:
+                cmd_file.write('attach ' + pid + '\n')
     cmd_file.close()
 
 
