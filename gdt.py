@@ -17,7 +17,7 @@ def verify_file_exists(path):
         raise Exception("file does not exist - " + path)
 
 
-def generate_paths(root_path, excluded_dirs, unary_function, separator):
+def generate_path(root_path, excluded_dirs, unary_function, separator):
     paths = []
     for root, dirs, files in os.walk(root_path, topdown=True):
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
@@ -29,11 +29,11 @@ def generate_paths(root_path, excluded_dirs, unary_function, separator):
 
 
 def generate_solib_search_path(root_path, excluded_dirs):
-    return generate_paths(root_path, excluded_dirs, is_shared_library, ";")
+    return generate_path(root_path, excluded_dirs, is_shared_library, ";")
 
 
 def generate_source_search_path(root_path, excluded_dirs):
-    return generate_paths(root_path, excluded_dirs, is_cpp_file, ":")
+    return generate_path(root_path, excluded_dirs, is_cpp_file, ":")
 
 
 def is_shared_library(path):
