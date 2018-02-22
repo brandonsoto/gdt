@@ -94,7 +94,6 @@ class Config:
             self.core_path = os.path.abspath(self.core_path)
 
 
-
 # thanks to Blayne Dennis for this class
 class TelnetConnection:
     def __init__(self, ip, user, password, prompt):
