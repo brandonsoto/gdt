@@ -17,9 +17,10 @@ def verify_file_exists(path):
         raise Exception("file does not exist - " + path)
 
 
-def generate_paths(root_path, unary_function):
+def generate_paths(root_path, unary_function, excluded_dirs):
     paths = []
-    for root, dirs, files in os.walk(root_path):
+    for root, dirs, files in os.walk(root_path, topdown=True):
+        dirs[:] = [d for d in dirs if d not in excluded_dirs]
         for f in files:
             if unary_function(f):
                 paths.append(root)
@@ -27,12 +28,12 @@ def generate_paths(root_path, unary_function):
     return ';'.join(paths)
 
 
-def generate_solib_search_path(root_path):
-    return generate_paths(root_path, is_shared_library)
+def generate_solib_search_path(root_path, excluded_dirs):
+    return generate_paths(root_path, is_shared_library, excluded_dirs)
 
 
-def generate_source_search_path(root_path):
-    return generate_paths(root_path, is_cpp_file)
+def generate_source_search_path(root_path, excluded_dirs):
+    return generate_paths(root_path, is_cpp_file, excluded_dirs)
 
 
 def is_shared_library(path):
@@ -65,13 +66,14 @@ class Config:
         self.project_path = data["project_path"]
         self.solib_search_path = ""
         self.source_search_path = ""
+        self.excluded_dirs = data["excluded_dirs"]
 
         self.validate()
         self.init_search_paths()
 
     def init_search_paths(self):
-        self.solib_search_path = generate_solib_search_path(self.symbols_path)
-        self.source_search_path = generate_source_search_path(self.project_path)
+        self.solib_search_path = generate_solib_search_path(self.symbols_path, self.excluded_dirs)
+        self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs)
 
     def validate(self):
         print "Validating configuration..."

@@ -7,5 +7,6 @@
     "module_path": "",
     "gdb_path": "/usr/bin/gdb",
     "project_path": "/home/brandon/Documents/gdt/Project",
-    "symbols_path": "/home/brandon/Documents/gdt/Project"
+    "symbols_path": "/home/brandon/Documents/gdt/Project",
+    "excluded_dirs": [".svn", "bld"]
 }
