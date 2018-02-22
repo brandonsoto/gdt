@@ -50,6 +50,7 @@ def is_cpp_file(path):
 
 class Config:
     def __init__(self, args):
+        print "Loading configuration..."
         data = json.load(open('gdt_config.json'))
 
         self.module_path = args.module if args.module else data["module_path"]
@@ -72,6 +73,8 @@ class Config:
         self.init_search_paths()
 
     def init_search_paths(self):
+        print "Generating search paths..."
+
         self.solib_search_path = generate_solib_search_path(self.symbols_path, self.excluded_dirs)
         self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs)
 
@@ -83,8 +86,6 @@ class Config:
 
         for dir_path in [self.symbols_path, self.project_path]:
             verify_dir_exists(dir_path)
-
-        print "Finished validating configuration"
 
 
 # thanks to Blayne Dennis for this class
@@ -129,12 +130,15 @@ class TelnetConnection:
 
     # TODO(brandon): what is the best way to handle multiple results?
     def get_pid_of(self, service):
+        print "Getting pid of " + service + "..."
         cmd_output = self.send_command("ps -A | grep " + service)
         pid_list = re.findall(r'\b\d+\b', cmd_output)
 
         if len(pid_list) > 0:
+            print "pid of " + service + " = " + pid_list[0]
             return pid_list[0]
         else:
+            print "pid of " + service + " not found"
             return None
 
 
@@ -162,8 +166,6 @@ def extract_service_name(service_path):
 
 def generate_gdb_command_file(config):
     print "Generating gdb command file..."
-    # TODO(brandon): need to figure out best way to generate solib-search-path
-    # TODO(brandon): need to search for src directories based on project path - this will generate dir variable
     cmd_file = open(config.command_file, 'w')
     cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
     cmd_file.write('set auto-solib-add on\n')
@@ -172,13 +174,12 @@ def generate_gdb_command_file(config):
     if config.core_path:
         cmd_file.write('core-file ' + config.core_path + '\n')
     else:
-        cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n') # TODO: reenable for qnx target
-        # cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
+        # cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n') # TODO: reenable for qnx target
+        cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
         pid = get_service_pid(config)
         if pid:
             cmd_file.write('attach ' + pid + '\n')
     cmd_file.close()
-    print "Finished generating gdb command file"
 
 
 def parse_args():
@@ -210,7 +211,6 @@ def main():
         generate_gdb_command_file(config)
 
     run_gdb(config.gdb_path, config.command_file)
-    print "Done!"
 
 
 if __name__ == '__main__':
