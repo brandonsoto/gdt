@@ -154,7 +154,6 @@ def run_gdb(gdb_path, command_file):
     print "Starting gdb..."
     try:
         subprocess.call([gdb_path, "--command=" + command_file])
-        print "Debugging session ended successfully"
     except Exception as exception:
         subprocess.call("reset")
         print "Debugging session ended in an error: " + exception.message
