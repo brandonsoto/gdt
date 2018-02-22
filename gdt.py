@@ -70,14 +70,7 @@ class Config:
         self.excluded_dirs = data["excluded_dirs"]
 
         self.validate()
-        self.convert_to_absolute_paths()
-        self.init_search_paths()
-
-    def init_search_paths(self):
-        print "Generating search paths..."
-
-        self.solib_search_path = generate_solib_search_path(self.symbols_path, self.excluded_dirs)
-        self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs)
+        self.init_paths()
 
     def validate(self):
         print "Validating configuration..."
@@ -88,12 +81,18 @@ class Config:
         for dir_path in [self.symbols_path, self.project_path]:
             verify_dir_exists(dir_path)
 
-    def convert_to_absolute_paths(self):
+    def init_paths(self):
+        print "Generating search paths..."
+
+        self.solib_search_path = generate_solib_search_path(self.symbols_path, self.excluded_dirs)
+        self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs)
+
         if self.module_path:
             self.module_path = os.path.abspath(self.module_path)
 
         if self.core_path:
             self.core_path = os.path.abspath(self.core_path)
+
 
 
 # thanks to Blayne Dennis for this class
