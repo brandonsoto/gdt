@@ -4,7 +4,6 @@
     "target_password": "vagrant",
     "target_debug_port": "8000",
     "target_prompt": "~$ ",
-    "module_path": "",
     "gdb_path": "/usr/bin/gdb",
     "project_path": "/home/brandon/Documents/gdt/Project",
     "symbols_path": "/home/brandon/Documents/gdt/Project",

@@ -23,7 +23,7 @@ def generate_paths(root_path, unary_function, excluded_dirs):
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
         for f in files:
             if unary_function(f):
-                paths.append(root)
+                paths.append(os.path.abspath(root))
                 break
     return ';'.join(paths)
 
@@ -53,7 +53,7 @@ class Config:
         print "Loading configuration..."
         data = json.load(open('gdt_config.json'))
 
-        self.module_path = args.module if args.module else data["module_path"]
+        self.module_path = args.module
         self.core_path = args.core
         self.symbols_path = data["symbols_path"]
         self.generate_command_file = not args.commands
@@ -63,13 +63,14 @@ class Config:
         self.target_password = data["target_password"]
         self.target_debug_port = data["target_debug_port"]
         self.target_prompt = data["target_prompt"]
-        self.gdb_path = data["gdb_path"]
+        self.gdb_path = os.path.abspath(data["gdb_path"])
         self.project_path = data["project_path"]
         self.solib_search_path = ""
         self.source_search_path = ""
         self.excluded_dirs = data["excluded_dirs"]
 
         self.validate()
+        self.convert_to_absolute_paths()
         self.init_search_paths()
 
     def init_search_paths(self):
@@ -86,6 +87,13 @@ class Config:
 
         for dir_path in [self.symbols_path, self.project_path]:
             verify_dir_exists(dir_path)
+
+    def convert_to_absolute_paths(self):
+        if self.module_path:
+            self.module_path = os.path.abspath(self.module_path)
+
+        if self.core_path:
+            self.core_path = os.path.abspath(self.core_path)
 
 
 # thanks to Blayne Dennis for this class
@@ -170,12 +178,12 @@ def generate_gdb_command_file(config):
     cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
     cmd_file.write('set auto-solib-add on\n')
     cmd_file.write('file ' + config.module_path + '\n')
-    # cmd_file.write('dir ' + config.source_search_path + '\n')
+    cmd_file.write('dir ' + config.source_search_path + '\n')
     if config.core_path:
         cmd_file.write('core-file ' + config.core_path + '\n')
     else:
-        # cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n') # TODO: reenable for qnx target
-        cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
+        cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n') # TODO: reenable for qnx target
+        # cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
         pid = get_service_pid(config)
         if pid:
             cmd_file.write('attach ' + pid + '\n')
