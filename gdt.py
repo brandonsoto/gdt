@@ -23,7 +23,7 @@ def generate_path(root_path, excluded_dirs, unary_function, separator):
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
         for f in files:
             if unary_function(f):
-                paths.append(os.path.abspath(root))
+                paths.append(repr(os.path.abspath(root)))
                 break
     return separator.join(paths)
 
@@ -85,13 +85,13 @@ class Config:
         print "Generating search paths..."
 
         self.solib_search_path = generate_solib_search_path(self.symbols_path, self.excluded_dirs)
-        self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs)
+        # self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs)
 
         if self.module_path:
-            self.module_path = os.path.abspath(self.module_path)
+            self.module_path = repr(os.path.abspath(self.module_path))
 
         if self.core_path:
-            self.core_path = os.path.abspath(self.core_path)
+            self.core_path = repr(os.path.abspath(self.core_path))
 
 
 # thanks to Blayne Dennis for this class
@@ -175,7 +175,7 @@ def generate_gdb_command_file(config):
     cmd_file = open(config.command_file, 'w')
     cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
     cmd_file.write('set auto-solib-add on\n')
-    cmd_file.write('dir ' + config.source_search_path + '\n')
+    # cmd_file.write('dir ' + config.source_search_path + '\n')
 
     if config.core_path:
         cmd_file.write('core-file ' + config.core_path + '\n')
