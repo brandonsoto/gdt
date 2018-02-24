@@ -9,6 +9,7 @@ import subprocess
 import telnetlib
 
 def get_str_repr(string):
+    string = str(string)
     return repr(string)[1:-1]
 
 def verify_dir_exists(path):
@@ -59,7 +60,7 @@ class Config:
 
         self.module_path = args.module
         self.core_path = args.core
-        self.symbols_path = str(data["symbols_path"])
+        self.symbols_path = data["symbols_path"]
         self.generate_command_file = not args.commands
         self.command_file = args.commands if args.commands else os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdb_commands.txt")
         self.target_ip = data["target_ip"]
@@ -68,7 +69,7 @@ class Config:
         self.target_debug_port = data["target_debug_port"]
         self.target_prompt = data["target_prompt"]
         self.gdb_path = data["gdb_path"]
-        self.project_path = str(data["project_path"])
+        self.project_path = data["project_path"]
         self.solib_search_path = ""
         self.source_search_path = ""
         self.excluded_dirs = data["excluded_dirs"]
