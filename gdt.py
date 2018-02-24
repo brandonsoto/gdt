@@ -26,27 +26,27 @@ def verify_file_exists(path):
     verify_path_exists(path, os.path.isfile)
 
 
-def generate_path(root_path, excluded_dirs, unary_function, separator):
+def generate_search_path(root_path, excluded_dirs, unary_func, separator):
     paths = []
     for root, dirs, files in os.walk(root_path, topdown=True):
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
-        if any(unary_function(f) for f in files):
+        if any(unary_func(f) for f in files):
             paths.append(get_str_repr(root))
     return separator.join(paths)
 
 
 def generate_solib_search_path(root_path, excluded_dirs):
-    return generate_path(root_path, excluded_dirs, is_shared_library, ";")
+    return generate_search_path(root_path, excluded_dirs, is_shared_library, ";")
 
 
 def generate_source_search_path(root_path, excluded_dirs):
-    return generate_path(root_path, excluded_dirs, is_cpp_file, ":")
+    return generate_search_path(root_path, excluded_dirs, is_cpp_file, ":")
 
 
 def is_shared_library(path):
     lib_number = re.search(r'\d+$', path)
     file_extension = ".so"
-    if lib_number is not None:
+    if lib_number:
         file_extension += "." + lib_number.group()
     return path.endswith(file_extension)
 
