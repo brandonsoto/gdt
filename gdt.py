@@ -10,8 +10,7 @@ import telnetlib
 
 
 def get_str_repr(string):
-    string = str(string)
-    return repr(string)[1:-1]
+    return repr(str(string))[1:-1]
 
 
 def verify_dir_exists(path):
