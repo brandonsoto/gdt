@@ -8,9 +8,11 @@ import socket
 import subprocess
 import telnetlib
 
+
 def get_str_repr(string):
     string = str(string)
     return repr(string)[1:-1]
+
 
 def verify_dir_exists(path):
     if path and not os.path.isdir(path):
