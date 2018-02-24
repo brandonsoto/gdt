@@ -61,6 +61,7 @@ class Config:
 
         self.module_path = args.module
         self.core_path = args.core
+        self.is_qnx_target = not args.other_target
         self.symbols_path = data["symbols_path"]
         self.generate_command_file = not args.commands
         self.command_file = args.commands if args.commands else os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdb_commands.txt")
@@ -188,8 +189,10 @@ def generate_gdb_command_file(config):
     if config.core_path:
         cmd_file.write('core-file ' + config.core_path + '\n')
     else:
-        # cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n') # TODO: reenable for qnx target
-        cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
+        if config.is_qnx_target:
+            cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n')
+        else:
+            cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
 
         if config.module_path:
             cmd_file.write('file ' + config.module_path + '\n')
@@ -217,6 +220,12 @@ def parse_args():
         '--commands',
         type=str,
         help="Relative or absolute path to GDB command file (this script will generate its own if not provided)")
+    parser.add_argument(
+        '-ot',
+        '--other-target',
+        action='store_true',
+        default=False,
+        help="Use when the remote target is run on a non-QNX OS")
     args = parser.parse_args()
     return args
 
