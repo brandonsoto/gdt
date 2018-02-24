@@ -27,10 +27,8 @@ def generate_path(root_path, excluded_dirs, unary_function, separator):
     paths = []
     for root, dirs, files in os.walk(root_path, topdown=True):
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
-        for f in files:
-            if unary_function(f):
-                paths.append(get_str_repr(root))
-                break
+        if any(unary_function(f) for f in files):
+            paths.append(get_str_repr(root))
     return separator.join(paths)
 
 
