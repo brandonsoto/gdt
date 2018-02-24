@@ -142,15 +142,15 @@ class TelnetConnection:
         self.session.write('{}\n'.format(cmd))
         return self.read_response(self.prompt)
 
-    # TODO(brandon): what is the best way to handle multiple results?
     def get_pid_of(self, service):
         print "Getting pid of " + service + "..."
         cmd_output = self.send_command("ps -A | grep " + service)
-        pid_list = re.findall(r'\b\d+\b', cmd_output)
+        output_lines = cmd_output.splitlines()
 
-        if len(pid_list) > 0:
-            print "pid of " + service + " = " + pid_list[0]
-            return pid_list[0]
+        if len(output_lines) > 2:
+            pid = output_lines[1].split()[0]
+            print "pid of " + service + " = " + pid
+            return pid
         else:
             print "pid of " + service + " not found"
             return None
