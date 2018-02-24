@@ -13,14 +13,17 @@ def get_str_repr(string):
     return repr(str(string))[1:-1]
 
 
+def verify_path_exists(path, path_exists):
+    if path and not path_exists(path):
+        raise Exception("path does not exist - " + path)
+
+
 def verify_dir_exists(path):
-    if path and not os.path.isdir(path):
-        raise Exception("directory does not exist - " + path)
+    verify_path_exists(path, os.path.isdir)
 
 
 def verify_file_exists(path):
-    if path and not os.path.isfile(path):
-        raise Exception("file does not exist - " + path)
+    verify_path_exists(path, os.path.isfile)
 
 
 def generate_path(root_path, excluded_dirs, unary_function, separator):
