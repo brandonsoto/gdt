@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import argparse
 import json
 import os
@@ -6,6 +8,8 @@ import socket
 import subprocess
 import telnetlib
 
+def get_str_repr(string):
+    return repr(string)[1:-1]
 
 def verify_dir_exists(path):
     if path and not os.path.isdir(path):
@@ -23,7 +27,7 @@ def generate_path(root_path, excluded_dirs, unary_function, separator):
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
         for f in files:
             if unary_function(f):
-                paths.append(repr(os.path.abspath(root)))
+                paths.append(get_str_repr(root))
                 break
     return separator.join(paths)
 
@@ -55,7 +59,7 @@ class Config:
 
         self.module_path = args.module
         self.core_path = args.core
-        self.symbols_path = data["symbols_path"]
+        self.symbols_path = str(data["symbols_path"])
         self.generate_command_file = not args.commands
         self.command_file = args.commands if args.commands else os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdb_commands.txt")
         self.target_ip = data["target_ip"]
@@ -63,8 +67,8 @@ class Config:
         self.target_password = data["target_password"]
         self.target_debug_port = data["target_debug_port"]
         self.target_prompt = data["target_prompt"]
-        self.gdb_path = os.path.abspath(data["gdb_path"])
-        self.project_path = data["project_path"]
+        self.gdb_path = data["gdb_path"]
+        self.project_path = str(data["project_path"])
         self.solib_search_path = ""
         self.source_search_path = ""
         self.excluded_dirs = data["excluded_dirs"]
@@ -86,12 +90,14 @@ class Config:
 
         self.solib_search_path = generate_solib_search_path(self.symbols_path, self.excluded_dirs)
         # self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs)
+        self.project_path = get_str_repr(os.path.abspath(self.project_path))
+        self.gdb_path = os.path.abspath(self.gdb_path)
 
         if self.module_path:
-            self.module_path = repr(os.path.abspath(self.module_path))
+            self.module_path = get_str_repr(os.path.abspath(self.module_path))
 
         if self.core_path:
-            self.core_path = repr(os.path.abspath(self.core_path))
+            self.core_path = get_str_repr(os.path.abspath(self.core_path))
 
 
 # thanks to Blayne Dennis for this class
@@ -175,7 +181,7 @@ def generate_gdb_command_file(config):
     cmd_file = open(config.command_file, 'w')
     cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
     cmd_file.write('set auto-solib-add on\n')
-    # cmd_file.write('dir ' + config.source_search_path + '\n')
+    cmd_file.write('dir ' + config.project_path + '\n')
 
     if config.core_path:
         cmd_file.write('core-file ' + config.core_path + '\n')
