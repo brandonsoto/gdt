@@ -212,8 +212,9 @@ def parse_args():
         '-c',
         '--core',
         type=str,
-        help="Relative or absolute path to core file)")
+        help="Relative or absolute path to core file")
     parser.add_argument(
+        '-cm',
         '--commands',
         type=str,
         help="Relative or absolute path to GDB command file (this script will generate its own if not provided)")
