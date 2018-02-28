@@ -31,7 +31,7 @@ def generate_search_path(root_path, excluded_dirs, unary_func, separator):
     for root, dirs, files in os.walk(root_path, topdown=True):
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
         if any(unary_func(f) for f in files):
-            paths.append(get_str_repr(root))
+            paths.append(get_str_repr(os.path.abspath(root)))
     return separator.join(paths)
 
 
@@ -40,7 +40,7 @@ def generate_solib_search_path(root_path, excluded_dirs):
 
 
 def generate_source_search_path(root_path, excluded_dirs):
-    return generate_search_path(root_path, excluded_dirs, is_cpp_file, ":")
+    return generate_search_path(root_path, excluded_dirs, is_cpp_file, ";")
 
 
 def is_shared_library(path):
@@ -52,7 +52,7 @@ def is_shared_library(path):
 
 
 def is_cpp_file(path):
-    return path.endswith(".cpp") or path.endswith(".cc") or path.endswith(".c")
+    return path.endswith(".cpp") or path.endswith(".cc") or path.endswith(".c") or path.endswith(".h") or path.endswith(".hpp")
 
 
 class Config:
