@@ -149,13 +149,17 @@ class TelnetConnection:
         cmd_output = self.send_command("ps -A | grep " + service)
         output_lines = cmd_output.splitlines()
 
-        if len(output_lines) > 2:
-            pid = output_lines[1].split()[0]
+        pid = None
+        for line in output_lines:
+            pid = re.search(r'\d+ ?', line)
+            if pid:
+                pid = pid.group()
+                break
+
+        if pid:
             print "pid of " + service + " = " + pid
-            return pid
-        else:
-            print "pid of " + service + " not found"
-            return None
+
+        return pid
 
 
 def run_gdb(gdb_path, command_file):
