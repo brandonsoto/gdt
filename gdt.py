@@ -76,6 +76,7 @@ class Config:
         self.solib_search_path = ""
         self.source_search_path = ""
         self.excluded_dirs = data["excluded_dirs"]
+        self.breakpoint_file = args.breakpoints if args.breakpoints else data["breakpoints"]
 
         self.validate()
         self.init_paths()
@@ -83,7 +84,7 @@ class Config:
     def validate(self):
         print "Validating configuration..."
 
-        for file_path in [self.module_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None]:
+        for file_path in [self.module_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None, self.breakpoint_file]:
             verify_file_exists(file_path)
 
         for dir_path in [self.symbols_path, self.project_path]:
@@ -102,6 +103,9 @@ class Config:
 
         if self.core_path:
             self.core_path = get_str_repr(os.path.abspath(self.core_path))
+
+        if self.breakpoint_file:
+            self.breakpoint_file = get_str_repr(os.path.abspath(self.breakpoint_file))
 
 
 # thanks to Blayne Dennis for this class
@@ -189,7 +193,7 @@ def generate_gdb_command_file(config):
     cmd_file = open(config.command_file, 'w')
     cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
     cmd_file.write('set auto-solib-add on\n')
-    cmd_file.write('dir ' + config.project_path + '\n')
+    cmd_file.write('dir ' + config.source_search_path + '\n')
 
     if config.core_path:
         cmd_file.write('core-file ' + config.core_path + '\n')
@@ -204,6 +208,10 @@ def generate_gdb_command_file(config):
             pid = get_service_pid(config)
             if pid:
                 cmd_file.write('attach ' + pid + '\n')
+
+    if config.breakpoint_file:
+        cmd_file.write("source " + config.breakpoint_file + '\n')
+
     cmd_file.close()
 
 
@@ -220,6 +228,11 @@ def parse_args():
         '--core',
         type=str,
         help="Relative or absolute path to core file")
+    parser.add_argument(
+        '-b',
+        '--breakpoints',
+        type=str,
+        help="Relative or absolute path to breakpoint/watchpoint file")
     parser.add_argument(
         '-cm',
         '--commands',
