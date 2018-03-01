@@ -52,7 +52,7 @@ def is_shared_library(path):
 
 
 def is_cpp_file(path):
-    return path.endswith(".cpp") or path.endswith(".cc") or path.endswith(".c") or path.endswith(".h") or path.endswith(".hpp")
+    return any(path.endswith(extension) for extension in [".cpp", ".c", ".cc", ".h", ".hpp"])
 
 
 class Config:
