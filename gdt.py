@@ -27,12 +27,12 @@ def verify_file_exists(path):
 
 
 def generate_search_path(root_path, excluded_dirs, unary_func, separator):
-    paths = []
+    search_path = []
     for root, dirs, files in os.walk(root_path, topdown=True):
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
         if any(unary_func(f) for f in files):
-            paths.append(get_str_repr(os.path.abspath(root)))
-    return separator.join(paths)
+            search_path.append(get_str_repr(os.path.abspath(root)))
+    return separator.join(search_path)
 
 
 def generate_solib_search_path(root_path, excluded_dirs):
@@ -134,7 +134,7 @@ class TelnetConnection:
 
         self.read_response('login: ')
         self.session.write('{}\n'.format(self.user))
-        self.read_response('Password:')
+        self.read_response('Password: ')
         self.session.write('{}\n'.format(self.password))
         resp = self.read_response(self.prompt)
         if resp[-len(self.prompt):] != self.prompt:
