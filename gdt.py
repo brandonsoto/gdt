@@ -39,8 +39,8 @@ def generate_solib_search_path(root_path, excluded_dirs):
     return generate_search_path(root_path, excluded_dirs, is_shared_library, ";")
 
 
-def generate_source_search_path(root_path, excluded_dirs):
-    return generate_search_path(root_path, excluded_dirs, is_cpp_file, ";")
+def generate_source_search_path(root_path, excluded_dirs, is_qnx_target):
+    return generate_search_path(root_path, excluded_dirs, is_cpp_file, ";" if is_qnx_target else ":")
 
 
 def is_shared_library(path):
@@ -93,7 +93,7 @@ class Config:
         print "Generating search paths..."
 
         self.solib_search_path = generate_solib_search_path(self.symbols_path, self.excluded_dirs)
-        # self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs)
+        self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs, self.is_qnx_target)
         self.project_path = get_str_repr(os.path.abspath(self.project_path))
         self.gdb_path = os.path.abspath(self.gdb_path)
 
