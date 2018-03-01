@@ -8,9 +8,9 @@ GDT (GDB Developer Tool) - developer script to quickly and easily debug a core f
 
 ### Features include
 
-    - Connect GDB to remote target
-    - Connect GDB to a remote process
-    - Connect GDB a local core file
+- Connect GDB to remote target
+- Connect GDB to a remote process
+- Connect GDB a local core file
 
 ### Prerequisites
 
