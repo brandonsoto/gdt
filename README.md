@@ -39,12 +39,12 @@ python gdt
 
 ```shell
 # use absolute path to file
-python gdt -m D:/Projects/MY20/Multimedia/bin/armle-v7/release/MM_DioCarLifeService.full
-python gdt --module D:/Projects/MY20/Multimedia/bin/armle-v7/release/MM_DioCarLifeService.full
+python gdt -m D:/Projects/SampleProject/bin/SampleService.full
+python gdt --module D:/Projects/SampleProject/bin/SampleService.full
 
 # use relative path to file
-python gdt -m ../MM_DioCarLifeService.full
-python gdt --module ../MM_DioCarLifeService.full
+python gdt -m ../SampleService.full
+python gdt --module ../SampleService.full
 
 ```
 
@@ -52,10 +52,10 @@ python gdt --module ../MM_DioCarLifeService.full
 
 ```shell
 # use absolute paths to files
-python gdt.py -m D:/Projects/Symbols/Module/bin/MM_DioCarLifeService.full -c D:/Projects/Core/MM_DioCarLifeService.core
-python gdt.py --module D:/Projects/Symbols/Module/bin/MM_DioCarLifeService.full --core D:/Projects/Core/MM_DioCarLifeService.core
+python gdt.py -m D:/Projects/Symbols/Module/bin/SampleService.full -c D:/Projects/Core/SampleService.core
+python gdt.py --module D:/Projects/Symbols/Module/bin/SampleService.full --core D:/Projects/Core/SampleService.core
 
 # using relative paths to files
-python gdt.py -m Symbols/Module/bin/MM_DioCarLifeService.full -c Core/MM_DioCarLifeService.core
-python gdt.py --module Symbols/Module/bin/MM_DioCarLifeService.full --core Core/MM_DioCarLifeService.core
+python gdt.py -m Symbols/Module/bin/SampleService.full -c Core/SampleService.core
+python gdt.py --module Symbols/Module/bin/SampleService.full --core Core/SampleService.core
 ```
