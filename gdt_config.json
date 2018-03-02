@@ -1,12 +1,12 @@
 {
-    "target_ip": "192.168.33.42",
-    "target_user": "vagrant",
-    "target_password": "vagrant",
-    "target_debug_port": "8000",
-    "target_prompt": "~$ ",
     "gdb_path": "/usr/bin/gdb",
     "project_path": "/home/brandon/Documents/gdt/Project",
     "symbols_path": "/home/brandon/Documents/gdt/Project",
     "breakpoints": "",
-    "excluded_dirs": [".svn", "bld", "build"]
+    "excluded_dirs": [".svn", "bld", "build"],
+    "target_ip": "192.168.33.42",
+    "target_user": "vagrant",
+    "target_password": "vagrant",
+    "target_debug_port": "8000",
+    "target_prompt": "~$ "
 }
