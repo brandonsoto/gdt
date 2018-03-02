@@ -93,7 +93,8 @@ class Config:
     def init_paths(self):
         print "Generating search paths..."
 
-        self.solib_search_path = generate_solib_search_path(self.symbols_path, self.excluded_dirs)
+        self.solib_search_path = generate_solib_search_path(self.symbols_path, self.excluded_dirs) \
+            + generate_solib_search_path(self.project_path, self.excluded_dirs)
         self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs, self.is_qnx_target)
         self.project_path = get_str_repr(os.path.abspath(self.project_path))
         self.gdb_path = os.path.abspath(self.gdb_path)
