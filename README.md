@@ -14,7 +14,7 @@ GDT (GDB Developer Tool) - developer script to quickly and easily debug a core f
 
 ### Prerequisites
 
-TODO
+- python 2.7
 
 ## How can I install the tool
 
@@ -29,33 +29,23 @@ python gdt.py --help
 python gdt.py -h
 ```
 
-### Connect to remote target but no process
+### Connect to remote target
 
 ```shell
-python gdt
+python gdt.py
 ```
 
 ### Debug a remote process
 
 ```shell
-# use absolute path to file
-python gdt -m D:/Projects/SampleProject/bin/SampleService.full
-python gdt --module D:/Projects/SampleProject/bin/SampleService.full
+python gdt.py -m D:/Project/bin/Service.full
 
-# use relative path to file
-python gdt -m ../SampleService.full
-python gdt --module ../SampleService.full
-
+# debug remote process with saved breakpoints
+python gdt.py -m D:/Project/bin/Service.full -b breakpoints.txt
 ```
 
 ### Debug a local core file
 
 ```shell
-# use absolute paths to files
-python gdt.py -m D:/Projects/Symbols/Module/bin/SampleService.full -c D:/Projects/Core/SampleService.core
-python gdt.py --module D:/Projects/Symbols/Module/bin/SampleService.full --core D:/Projects/Core/SampleService.core
-
-# using relative paths to files
-python gdt.py -m Symbols/Module/bin/SampleService.full -c Core/SampleService.core
-python gdt.py --module Symbols/Module/bin/SampleService.full --core Core/SampleService.core
+python gdt.py -m D:/Project/bin/SampleService.full -c D:/Project/Core/Core.core
 ```
