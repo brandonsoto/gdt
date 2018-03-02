@@ -1,7 +1,7 @@
 {
     "gdb_path": "/usr/bin/gdb",
-    "project_path": "/home/brandon/Documents/gdt/Project",
-    "symbols_path": "/home/brandon/Documents/gdt/Project",
+    "project_root": "/home/brandon/Documents/gdt/Project",
+    "symbol_paths": ["/home/brandon/Documents/gdt/Symbols", "/home/brandon/Documents/gdt/Project"],
     "breakpoints": "",
     "excluded_dirs": [".svn", "bld", "build"],
     "target_ip": "192.168.33.42",
