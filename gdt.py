@@ -36,10 +36,8 @@ def generate_search_path(root_path, excluded_dirs, unary_func, separator):
 
 
 def generate_solib_search_path(symbol_paths, excluded_dirs):
-    solib_search_paths = ""
-    for path in symbol_paths:
-        solib_search_paths += generate_search_path(path, excluded_dirs, is_shared_library, ";") + ";"
-    return solib_search_paths
+    solib_search_paths = [generate_search_path(path, excluded_dirs, is_shared_library, ';') for path in symbol_paths]
+    return ';'.join(solib_search_paths)
 
 
 def generate_source_search_path(root_path, excluded_dirs, is_qnx_target):
