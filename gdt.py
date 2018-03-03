@@ -206,29 +206,27 @@ def extract_service_name(service_path):
 
 def generate_gdb_command_file(config):
     print_info("Generating gdb command file...")
+    has_core_file = config.core_path is not None
+    has_program_path = config.program_path is not None
+    ip_addr = config.target_ip + ":" + config.target_debug_port
+    pid = get_service_pid(config) if not has_core_file and has_program_path else None
+
+    options = [
+        {"name": "set solib-search-path", "value": config.solib_search_path, "enabled": True},
+        {"name": "set auto-solib-add", "value": "on", "enabled": True},
+        {"name": "dir", "value": config.source_search_path, "enabled": True},
+        {"name": "core-file", "value": config.core_path, "enabled": has_core_file},
+        {"name": "target qnx", "value": ip_addr, "enabled": not has_core_file and config.is_qnx_target},
+        {"name": "target extended-remote", "value": ip_addr, "enabled": not has_core_file and not config.is_qnx_target},
+        {"name": "file", "value": config.program_path, "enabled": has_program_path},
+        {"name": "attach", "value": pid, "enabled": not has_core_file and has_program_path and pid is not None},
+        {"name": "source", "value": config.breakpoint_file, "enabled": bool(config.breakpoint_file)}
+    ]
 
     cmd_file = open(config.command_file, 'w')
-    cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
-    cmd_file.write('set auto-solib-add on\n')
-    cmd_file.write('dir ' + config.source_search_path + '\n')
-
-    if config.core_path:
-        cmd_file.write('core-file ' + config.core_path + '\n')
-    else:
-        if config.is_qnx_target:
-            cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n')
-        else:
-            cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
-
-        if config.program_path:
-            cmd_file.write('file ' + config.program_path + '\n')
-            pid = get_service_pid(config)
-            if pid:
-                cmd_file.write('attach ' + pid + '\n')
-
-    if config.breakpoint_file:
-        cmd_file.write("source " + config.breakpoint_file + '\n')
-
+    for option in options:
+        if option["enabled"]:
+            cmd_file.write(option["name"] + " " + option["value"] + "\n")
     cmd_file.close()
     print_success('Generated command file successfully! (' + cmd_file.name + ')')
 
