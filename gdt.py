@@ -253,9 +253,9 @@ def parse_args():
         help="Relative or absolute path to breakpoint/watchpoint file")
     parser.add_argument(
         '-cm',
-        '--commands',
+        '--command',
         type=str,
-        help="Relative or absolute path to GDB command file (this script will generate its own if not provided)")
+        help="Relative or absolute path to command file (this script will generate its own if not provided)")
     parser.add_argument(
         '-ot',
         '--other-target',
