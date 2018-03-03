@@ -78,12 +78,12 @@ class Config:
     def __init__(self, args):
         data = json.load(open('gdt_config.json'))
 
-        self.module_path = args.module
+        self.program_path = args.program
         self.core_path = args.core
         self.is_qnx_target = not args.other_target
         self.symbol_paths = data["symbol_paths"]
-        self.generate_command_file = not args.commands
-        self.command_file = args.commands if args.commands else os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdb_commands.txt")
+        self.generate_command_file = not args.command
+        self.command_file = args.command if args.command else os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdb_commands.txt")
         self.target_ip = data["target_ip"]
         self.target_user = data["target_user"]
         self.target_password = data["target_password"]
@@ -102,7 +102,7 @@ class Config:
     def validate(self):
         print_info('Validating configuration...')
 
-        for file_path in [self.module_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None, self.breakpoint_file]:
+        for file_path in [self.program_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None, self.breakpoint_file]:
             verify_file_exists(file_path)
 
         for dir_path in self.symbol_paths + [self.project_path]:
@@ -113,8 +113,8 @@ class Config:
     def init_paths(self):
         print_info('Generating search paths...')
 
-        if self.module_path:
-            self.module_path = get_str_repr(os.path.abspath(self.module_path))
+        if self.program_path:
+            self.program_path = get_str_repr(os.path.abspath(self.program_path))
 
         if self.core_path:
             self.core_path = get_str_repr(os.path.abspath(self.core_path))
@@ -186,7 +186,7 @@ def run_gdb(gdb_path, command_file):
 
 
 def get_service_pid(config):
-    service = extract_service_name(config.module_path)
+    service = extract_service_name(config.program_path)
     telnet = TelnetConnection(ip=config.target_ip, user=config.target_user, password=config.target_password,
                               prompt=config.target_prompt)
     pid = telnet.get_pid_of(service)
@@ -220,8 +220,8 @@ def generate_gdb_command_file(config):
         else:
             cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
 
-        if config.module_path:
-            cmd_file.write('file ' + config.module_path + '\n')
+        if config.program_path:
+            cmd_file.write('file ' + config.program_path + '\n')
             pid = get_service_pid(config)
             if pid:
                 cmd_file.write('attach ' + pid + '\n')
