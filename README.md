@@ -47,16 +47,16 @@ python gdt.py -h
 ### Debug a remote process
 
 ```shell
-python gdt.py -m D:/Project/bin/Service.full
+python gdt.py -p D:/Project/bin/Service.full
 
 # debug remote process with saved breakpoints
-python gdt.py -m D:/Project/bin/Service.full -b breakpoints.txt
+python gdt.py -p D:/Project/bin/Service.full -b breakpoints.txt
 ```
 
 ### Debug a local core file
 
 ```shell
-python gdt.py -m D:/Project/bin/Service.full -c D:/Project/Core/Core.core
+python gdt.py -p D:/Project/bin/Service.full -c D:/Project/Core/Core.core
 ```
 
 ### Connect to remote target

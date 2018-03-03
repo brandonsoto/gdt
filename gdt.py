@@ -237,10 +237,10 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='GDB Developer Tool: developer script to quickly and easily debug a remote target or core file.')
     parser.add_argument(
-        '-m',
-        '--module',
+        '-p',
+        '--program',
         type=str,
-        help="Relative or absolute path to module executable (ends in *.full or *.debug)")
+        help="Relative or absolute path to program executable (ends in *.full or *.debug)")
     parser.add_argument(
         '-c',
         '--core',
