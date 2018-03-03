@@ -8,6 +8,23 @@ import socket
 import subprocess
 import telnetlib
 
+INFO_COLOR = '\033[95m'
+SUCCESS_COLOR = '\033[92m'
+FAIL_COLOR = '\033[91m'
+END_COLOR = '\033[0m'
+
+
+def print_info(string):
+    print INFO_COLOR + string + END_COLOR
+
+
+def print_success(string):
+    print SUCCESS_COLOR + string + END_COLOR
+
+
+def print_failure(string):
+    print FAIL_COLOR + string + END_COLOR
+
 
 def get_str_repr(string):
     return repr(str(string))[1:-1]
@@ -36,8 +53,9 @@ def generate_search_path(root_path, excluded_dirs, unary_func, separator):
 
 
 def generate_solib_search_path(symbol_paths, excluded_dirs):
-    solib_search_paths = [generate_search_path(path, excluded_dirs, is_shared_library, ';') for path in symbol_paths]
-    return ';'.join(solib_search_paths)
+    separator = ";"
+    solib_search_paths = [generate_search_path(path, excluded_dirs, is_shared_library, separator) for path in symbol_paths]
+    return separator.join(solib_search_paths)
 
 
 def generate_source_search_path(root_path, excluded_dirs, is_qnx_target):
@@ -58,7 +76,6 @@ def is_cpp_file(path):
 
 class Config:
     def __init__(self, args):
-        print "Loading configuration..."
         data = json.load(open('gdt_config.json'))
 
         self.module_path = args.module
@@ -83,7 +100,7 @@ class Config:
         self.init_paths()
 
     def validate(self):
-        print "Validating configuration..."
+        print_info('Validating configuration...')
 
         for file_path in [self.module_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None, self.breakpoint_file]:
             verify_file_exists(file_path)
@@ -91,13 +108,10 @@ class Config:
         for dir_path in self.symbol_paths + [self.project_path]:
             verify_dir_exists(dir_path)
 
-    def init_paths(self):
-        print "Generating search paths..."
+        print_success('Validated configuration successfully!')
 
-        self.solib_search_path = generate_solib_search_path(self.symbol_paths, self.excluded_dirs)
-        self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs, self.is_qnx_target)
-        self.project_path = get_str_repr(os.path.abspath(self.project_path))
-        self.gdb_path = os.path.abspath(self.gdb_path)
+    def init_paths(self):
+        print_info('Generating search paths...')
 
         if self.module_path:
             self.module_path = get_str_repr(os.path.abspath(self.module_path))
@@ -107,6 +121,13 @@ class Config:
 
         if self.breakpoint_file:
             self.breakpoint_file = get_str_repr(os.path.abspath(self.breakpoint_file))
+
+        self.solib_search_path = generate_solib_search_path(self.symbol_paths, self.excluded_dirs)
+        self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs, self.is_qnx_target)
+        self.project_path = get_str_repr(os.path.abspath(self.project_path))
+        self.gdb_path = os.path.abspath(self.gdb_path)
+
+        print_success('Generated search paths successfully!')
 
 
 # thanks to Blayne Dennis for this class
@@ -150,21 +171,9 @@ class TelnetConnection:
         return self.read_response(self.prompt)
 
     def get_pid_of(self, service):
-        print "Getting pid of " + service + "..."
         cmd_output = self.send_command("ps -A | grep " + service)
-        output_lines = cmd_output.splitlines()
-
-        pid = None
-        for line in output_lines:
-            pid = re.search(r'\d+ ?', line)
-            if pid:
-                pid = pid.group()
-                break
-
-        if pid:
-            print "pid of " + service + " = " + pid
-
-        return pid
+        pid = re.search(r'\d+ .*' + service, cmd_output)
+        return pid.group().split()[0] if pid else None
 
 
 def run_gdb(gdb_path, command_file):
@@ -173,14 +182,21 @@ def run_gdb(gdb_path, command_file):
         subprocess.call([gdb_path, "--command=" + command_file])
     except Exception as exception:
         subprocess.call("reset")
-        print "Debugging session ended in an error: " + exception.message
+        print_failure("Debugging session ended in an error: " + exception.message)
 
 
 def get_service_pid(config):
     service = extract_service_name(config.module_path)
     telnet = TelnetConnection(ip=config.target_ip, user=config.target_user, password=config.target_password,
                               prompt=config.target_prompt)
-    return telnet.get_pid_of(service)
+    pid = telnet.get_pid_of(service)
+
+    if pid:
+        print_success('pid of ' + service + ' = ' + pid)
+    else:
+        print_failure('pid of ' + service + ' not found')
+
+    return pid
 
 
 def extract_service_name(service_path):
@@ -189,7 +205,7 @@ def extract_service_name(service_path):
 
 
 def generate_gdb_command_file(config):
-    print "Generating gdb command file..."
+    print_info("Generating gdb command file...")
 
     cmd_file = open(config.command_file, 'w')
     cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
@@ -214,6 +230,7 @@ def generate_gdb_command_file(config):
         cmd_file.write("source " + config.breakpoint_file + '\n')
 
     cmd_file.close()
+    print_success('Generated command file successfully! (' + cmd_file.name + ')')
 
 
 def parse_args():
@@ -257,6 +274,7 @@ def main():
         generate_gdb_command_file(config)
 
     run_gdb(config.gdb_path, config.command_file)
+    print 'GDT Session ended'
 
 
 if __name__ == '__main__':
