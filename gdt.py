@@ -212,6 +212,7 @@ def generate_gdb_command_file(config):
     pid = get_service_pid(config) if not has_core_file and has_program_path else None
 
     options = [
+        {"name": "set pagination", "value": "off", "enabled": True},
         {"name": "set solib-search-path", "value": config.solib_search_path, "enabled": True},
         {"name": "set auto-solib-add", "value": "on", "enabled": True},
         {"name": "dir", "value": config.source_search_path, "enabled": True},
