@@ -9,14 +9,9 @@ import socket
 import subprocess
 import telnetlib
 
-INFO_COLOR = '\033[95m'
 SUCCESS_COLOR = '\033[92m'
 FAIL_COLOR = '\033[91m'
 END_COLOR = '\033[0m'
-
-
-def print_info(string):
-    print INFO_COLOR + string + END_COLOR
 
 
 def print_success(string):
@@ -93,7 +88,7 @@ class Config:
         self.init_paths()
 
     def validate(self):
-        print_info('Validating configuration...')
+        print 'Validating configuration...'
 
         for file_path in [self.program_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None, self.breakpoint_file]:
             verify_file_exists(file_path)
@@ -104,7 +99,7 @@ class Config:
         print_success('Validated configuration successfully!')
 
     def init_paths(self):
-        print_info('Generating search paths...')
+        print 'Generating search paths...'
 
         threadpool = ThreadPool(processes=len(self.symbol_paths) + 1)
         paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
@@ -202,7 +197,7 @@ def extract_service_name(service_path):
 
 
 def generate_gdb_command_file(config):
-    print_info("Generating gdb command file...")
+    print "Generating gdb command file..."
     has_core_file = config.core_path is not None
     has_program_path = config.program_path is not None
     ip_addr = config.target_ip + ":" + config.target_debug_port
