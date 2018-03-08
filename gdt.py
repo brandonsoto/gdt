@@ -12,6 +12,7 @@ import telnetlib
 SUCCESS_COLOR = '\033[92m'
 FAIL_COLOR = '\033[91m'
 END_COLOR = '\033[0m'
+GDT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def print_success(string):
@@ -28,7 +29,7 @@ def get_str_repr(string):
 
 def verify_path_exists(path, path_exists):
     if path and not path_exists(path):
-        raise Exception("path does not exist - " + path)
+        raise Exception('path does not exist - "' + path + '"')
 
 
 def verify_dir_exists(path):
@@ -62,14 +63,14 @@ def is_cpp_file(path):
 
 class Config:
     def __init__(self, args):
-        data = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gdt_config.json')))
+        data = json.load(open(os.path.join(GDT_DIR, 'gdt_config.json')))
 
         self.program_path = args.program
         self.core_path = args.core
         self.is_qnx_target = not args.other_target
         self.symbol_paths = data["symbol_paths"]
         self.generate_command_file = not args.command
-        self.command_file = args.command if args.command else os.path.join(os.path.dirname(os.path.abspath(__file__)), "gdb_commands.txt")
+        self.command_file = args.command if args.command else os.path.join(GDT_DIR, "gdb_commands.txt")
         self.target_ip = data["target_ip"]
         self.target_user = data["target_user"]
         self.target_password = data["target_password"]
@@ -105,11 +106,11 @@ class Config:
     def validate_target(self):
         ip = re.search(r"^\d+\.\d+\.\d+\.\d+$", self.target_ip)
         if not ip:
-            raise Exception("invalid target IPv4 address - " + self.target_ip)
+            raise Exception('invalid target IPv4 address - "' + self.target_ip + '"')
 
         port = re.search(r"^\d+$", self.target_debug_port)
         if not port:
-            raise Exception("invalid target debug port - " + self.target_debug_port)
+            raise Exception('invalid target debug port - "' + self.target_debug_port + '"')
 
     def init_paths(self):
         print 'Generating search paths...'
