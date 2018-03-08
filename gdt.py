@@ -53,17 +53,6 @@ def generate_search_path(root_path, excluded_dirs, unary_func, separator):
     return separator.join(search_path)
 
 
-def generate_solib_search_path(symbol_paths, excluded_dirs):
-    separator = ";"
-    pool = ThreadPool(processes=len(symbol_paths))
-    async_results = [pool.apply_async(generate_search_path, (path, excluded_dirs, is_shared_library, separator)) for path in symbol_paths]
-    return separator.join([result.get() for result in async_results])
-
-
-def generate_source_search_path(root_path, excluded_dirs, is_qnx_target):
-    return generate_search_path(root_path, excluded_dirs, is_cpp_file, ";" if is_qnx_target else ":")
-
-
 def is_shared_library(path):
     lib_number = re.search(r'\d+$', path)
     file_extension = ".so"
@@ -97,6 +86,8 @@ class Config:
         self.source_search_path = ""
         self.excluded_dirs = data["excluded_dirs"]
         self.breakpoint_file = args.breakpoints if args.breakpoints else data["breakpoints"]
+        self.solib_separator = ";"
+        self.source_separator = ";" if self.is_qnx_target else ":"
 
         self.validate()
         self.init_paths()
@@ -115,6 +106,10 @@ class Config:
     def init_paths(self):
         print_info('Generating search paths...')
 
+        threadpool = ThreadPool(processes=len(self.symbol_paths) + 1)
+        paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
+        paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
+
         if self.program_path:
             self.program_path = get_str_repr(os.path.abspath(self.program_path))
 
@@ -124,8 +119,8 @@ class Config:
         if self.breakpoint_file:
             self.breakpoint_file = get_str_repr(os.path.abspath(self.breakpoint_file))
 
-        self.solib_search_path = generate_solib_search_path(self.symbol_paths, self.excluded_dirs)
-        self.source_search_path = generate_source_search_path(self.project_path, self.excluded_dirs, self.is_qnx_target)
+        self.solib_search_path = self.solib_separator.join([path.get() for path in paths[:-1]])
+        self.source_search_path = paths[-1].get()
         self.project_path = get_str_repr(os.path.abspath(self.project_path))
         self.gdb_path = os.path.abspath(self.gdb_path)
 
