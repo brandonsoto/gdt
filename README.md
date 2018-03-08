@@ -18,11 +18,11 @@ GDB Developer Tool (GDT) is a developer script to quickly and easily debug a cor
 
 ## Configuration
 
-You are able to customize certain parts of GDT. All configuration can be found in gdt_config.json. You won't need to modify all options, but the paths are of particular importance. The following can be customized:
+You are able to customize certain parts of GDT. All configuration can be found in gdt_config.json. You won't need to modify all options, but the path options are of particular importance. The following can be customized:
 
 - gdb_path - the full path to the GDB executable
-- project_path - the full path to the project's root directory (ex. D:/Projects/MY20)
-- symbols_path - the full path to the project's symbols root directory (ex. D:/Project/Symbols)
+- project_path - the full path to the project's root directory (ex. D:/Projects/TestProject)
+- symbol_paths - the full paths to symbol directories (ex. D:/Project/TestProject/Symbols)
 - breakpoints - the full path to a breakpoint file to be used by GDB (empty if not used)
 - excluded_dirs - names of directories to be excluded from solib path and source path generation
 - target_ip - the target's IPv4 address
