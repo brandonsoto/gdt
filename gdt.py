@@ -45,7 +45,7 @@ def generate_search_path(root_path, excluded_dirs, unary_func, separator):
     for root, dirs, files in os.walk(root_path, topdown=True):
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
         if any(unary_func(f) for f in files):
-            search_path.insert(0, get_str_repr(os.path.abspath(root)))
+            search_path.insert(0, get_str_repr(root))
     return separator.join(search_path)
 
 
