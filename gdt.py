@@ -104,7 +104,7 @@ class Config:
             verify_file_exists(file_path)
 
     def validate_target(self):
-        ip = re.search(r"^\d+\.\d+\.\d+\.\d+$", self.target_ip)
+        ip = re.search(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", self.target_ip)
         if not ip:
             raise Exception('invalid target IPv4 address - "' + self.target_ip + '"')
 
