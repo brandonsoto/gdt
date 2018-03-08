@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import re
+from multiprocessing.pool import ThreadPool
 import socket
 import subprocess
 import telnetlib
@@ -54,8 +55,9 @@ def generate_search_path(root_path, excluded_dirs, unary_func, separator):
 
 def generate_solib_search_path(symbol_paths, excluded_dirs):
     separator = ";"
-    solib_search_paths = [generate_search_path(path, excluded_dirs, is_shared_library, separator) for path in symbol_paths]
-    return separator.join(solib_search_paths)
+    pool = ThreadPool(processes=len(symbol_paths))
+    async_results = [pool.apply_async(generate_search_path, (path, excluded_dirs, is_shared_library, separator)) for path in symbol_paths]
+    return separator.join([result.get() for result in async_results])
 
 
 def generate_source_search_path(root_path, excluded_dirs, is_qnx_target):
