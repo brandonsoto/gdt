@@ -49,8 +49,8 @@ def generate_search_path(root_path, excluded_dirs, unary_func, separator):
 
 
 def is_shared_library(path):
-    lib_number = re.search(r'\d+$', path)
     file_extension = ".so"
+    lib_number = re.search(r'\d+$', path)
     if lib_number:
         file_extension += "." + lib_number.group()
     return path.endswith(file_extension)
