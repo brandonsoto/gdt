@@ -112,12 +112,16 @@ class Config:
         if not port:
             raise Exception('invalid target debug port - "' + self.target_debug_port + '"')
 
-    def init_paths(self):
-        print 'Generating search paths...'
-
+    def init_search_paths(self):
         threadpool = ThreadPool(processes=len(self.symbol_paths) + 1)
         paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
         paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
+        self.solib_search_path = self.solib_separator.join([path.get() for path in paths[:-1]])
+        self.source_search_path = paths[-1].get()
+
+
+    def init_paths(self):
+        print 'Initializing paths...'
 
         if self.program_path:
             self.program_path = get_str_repr(os.path.abspath(self.program_path))
@@ -128,12 +132,13 @@ class Config:
         if self.breakpoint_file:
             self.breakpoint_file = get_str_repr(os.path.abspath(self.breakpoint_file))
 
-        self.solib_search_path = self.solib_separator.join([path.get() for path in paths[:-1]])
-        self.source_search_path = paths[-1].get()
+        if self.generate_command_file:
+            self.init_search_paths()
+
         self.project_path = get_str_repr(os.path.abspath(self.project_path))
         self.gdb_path = os.path.abspath(self.gdb_path)
 
-        print_success('Generated search paths successfully!')
+        print_success('Initialized paths successfully!')
 
 
 # thanks to Blayne Dennis for this class
