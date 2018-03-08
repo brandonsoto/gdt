@@ -62,7 +62,7 @@ def is_cpp_file(path):
 
 class Config:
     def __init__(self, args):
-        data = json.load(open('gdt_config.json'))
+        data = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gdt_config.json')))
 
         self.program_path = args.program
         self.core_path = args.core
