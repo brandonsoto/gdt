@@ -89,14 +89,27 @@ class Config:
 
     def validate(self):
         print 'Validating configuration...'
+        self.validate_files()
+        self.validate_dirs()
+        self.validate_target()
+        print_success('Validated configuration successfully!')
 
-        for file_path in [self.program_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None, self.breakpoint_file]:
-            verify_file_exists(file_path)
-
+    def validate_dirs(self):
         for dir_path in self.symbol_paths + [self.project_path]:
             verify_dir_exists(dir_path)
 
-        print_success('Validated configuration successfully!')
+    def validate_files(self):
+        for file_path in [self.program_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None, self.breakpoint_file]:
+            verify_file_exists(file_path)
+
+    def validate_target(self):
+        ip = re.search(r"^\d+\.\d+\.\d+\.\d+$", self.target_ip)
+        if not ip:
+            raise Exception("invalid target IPv4 address - " + self.target_ip)
+
+        port = re.search(r"^\d+$", self.target_debug_port)
+        if not port:
+            raise Exception("invalid target debug port - " + self.target_debug_port)
 
     def init_paths(self):
         print 'Generating search paths...'
