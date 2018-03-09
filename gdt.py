@@ -152,7 +152,7 @@ class Config:
 
         if self.generate_command_file:
             self.init_search_paths()
-            if not self.core_path:
+            if self.program_path and not self.core_path:
                 self.opts["pid"].value = get_service_pid(self.program_path, self.target)
                 self.opts["pid"].enabled = True
 
