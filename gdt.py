@@ -214,6 +214,7 @@ def run_gdb(gdb_path, command_file):
         print "Debugging session ended in an error: " + exception.message
 
 
+# TODO: remove config dependency
 def get_service_pid(config):
     service = extract_service_name(config.program_path)
     telnet = TelnetConnection(config.target)
