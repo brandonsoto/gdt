@@ -50,39 +50,70 @@ def is_cpp_file(path):
     return any(path.endswith(extension) for extension in [".cpp", ".c", ".cc", ".h", ".hpp"])
 
 
+class Target:
+    def __init__(self, ip, user, password, port, prompt):
+        self.ip = ip
+        self.user = user
+        self.password = password
+        self.port = port
+        self.prompt = prompt
+
+    def full_address(self):
+        return self.ip + ":" + self.port
+
+
+class GDB_Option:
+    def __init__(self, name, value, enabled):
+        self.name = name
+        self.value = value
+        self.enabled = enabled
+
+
+
 class Config:
     def __init__(self, args):
         data = json.load(open(os.path.join(GDT_DIR, 'gdt_config.json')))
 
-        self.program_path = args.program
-        self.core_path = args.core
         self.is_qnx_target = not args.other_target
         self.symbol_paths = data["symbol_paths"]
         self.generate_command_file = not args.command
         self.command_file = args.command if args.command else os.path.join(GDT_DIR, "gdb_commands.txt")
-        self.target_ip = data["target_ip"]
-        self.target_user = data["target_user"]
-        self.target_password = data["target_password"]
-        self.target_debug_port = data["target_debug_port"]
-        self.target_prompt = data["target_prompt"]
+        self.target = Target(data["target_ip"], data["target_user"], data["target_password"], data["target_debug_port"], data["target_prompt"])
         self.gdb_path = data["gdb_path"]
         self.project_path = data["project_root"]
-        self.solib_search_path = ""
-        self.source_search_path = ""
         self.excluded_dirs = data["excluded_dirs"]
-        self.breakpoint_file = args.breakpoints if args.breakpoints else data["breakpoints"]
         self.solib_separator = ";"
         self.source_separator = ";" if self.is_qnx_target else ":"
+        self.core_path = args.core if args.core else ""
+        self.program_path = args.program if args.program else ""
+        self.breakpoint_file = args.breakpoints if args.breakpoints else ""
+        self.opts = {
+            "pagination": GDB_Option('set pagination', "off", True),
+            "auto_solib": GDB_Option('set auto-solib-add', "on", True),
+            "solib_path": GDB_Option('set solib-search-path', "", False),
+            "source_path" : GDB_Option('dir', "", False),
+            "core_file": GDB_Option('core-file', "", args.core is not None),
+            "qnx_target": GDB_Option('target qnx', self.target.full_address(), self.is_qnx_target),
+            "target": GDB_Option('target extended-remote', self.target.full_address(), not self.is_qnx_target),
+            "program": GDB_Option('file', args.program, args.program is not None),
+            "pid": GDB_Option('attach', "", args.program is not None and args.core is None),
+            "breakpoint": GDB_Option('source', args.breakpoints, args.breakpoints is not None)
+        }
 
         self.validate()
         self.init_paths()
 
     def validate(self):
         print 'Validating configuration...'
+        self.validate_args()
         self.validate_files()
         self.validate_dirs()
         self.validate_target()
         print 'Validated configuration successfully!'
+
+    def validate_args(self):
+        # TODO: need to implement
+        pass
 
     def validate_dirs(self):
         for dir_path in self.symbol_paths + [self.project_path]:
@@ -93,53 +124,50 @@ class Config:
             verify_file_exists(file_path)
 
     def validate_target(self):
-        ip = re.search(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", self.target_ip)
+        ip = re.search(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", self.target.ip)
         if not ip:
-            raise Exception('invalid target IPv4 address - "' + self.target_ip + '"')
+            raise Exception('invalid target IPv4 address - "' + self.target.ip + '"')
 
-        port = re.search(r"^\d+$", self.target_debug_port)
+        port = re.search(r"^\d+$", self.target.port)
         if not port:
-            raise Exception('invalid target debug port - "' + self.target_debug_port + '"')
+            raise Exception('invalid target debug port - "' + self.target.port + '"')
 
     def init_search_paths(self):
         threadpool = ThreadPool(processes=len(self.symbol_paths) + 1)
         paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
         paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
-        self.solib_search_path = self.solib_separator.join([path.get() for path in paths[:-1]])
-        self.source_search_path = paths[-1].get()
+        self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
+        self.opts["solib_path"].enabled = True
+        self.opts["source_path"].value = paths[-1].get()
+        self.opts["source_path"].enabled = True
 
 
     def init_paths(self):
         print 'Initializing paths...'
 
-        if self.program_path:
-            self.program_path = get_str_repr(os.path.abspath(self.program_path))
-
-        if self.core_path:
-            self.core_path = get_str_repr(os.path.abspath(self.core_path))
-
-        if self.breakpoint_file:
-            self.breakpoint_file = get_str_repr(os.path.abspath(self.breakpoint_file))
+        self.project_path = get_str_repr(os.path.abspath(self.project_path))
+        self.gdb_path = os.path.abspath(self.gdb_path)
+        self.opts["program"].value = get_str_repr(os.path.abspath(self.program_path))
+        self.opts["core_file"].value = get_str_repr(os.path.abspath(self.core_path))
+        self.opts["breakpoint"].value = get_str_repr(os.path.abspath(self.breakpoint_file))
 
         if self.generate_command_file:
             self.init_search_paths()
-
-        self.project_path = get_str_repr(os.path.abspath(self.project_path))
-        self.gdb_path = os.path.abspath(self.gdb_path)
+            if not self.core_path:
+                self.opts["pid"].value = get_service_pid(self)
+                self.opts["pid"].enabled = True
 
         print 'Initialized paths successfully!'
 
 
 # thanks to Blayne Dennis for this class
 class TelnetConnection:
-    def __init__(self, ip, user, password, prompt):
+    def __init__(self, target):
         self.TIMEOUT_SEC = 10
         self.PORT = 23
-        self.ip = ip
-        self.user = user
-        self.password = password
+        self.target = target
+        self.prompt = target.prompt
         self.session = None
-        self.prompt = prompt
         self.connect()
 
     def __del__(self):
@@ -154,14 +182,14 @@ class TelnetConnection:
 
     def connect(self):
         try:
-            self.session = telnetlib.Telnet(self.ip, self.PORT, self.TIMEOUT_SEC)
+            self.session = telnetlib.Telnet(self.target.ip, self.PORT, self.TIMEOUT_SEC)
         except (socket.timeout, socket.error):
             raise Exception("Telnet: Server doesn't respond")
 
         self.read_response('login: ')
-        self.session.write('{}\n'.format(self.user))
+        self.session.write('{}\n'.format(self.target.user))
         self.read_response('Password: ')
-        self.session.write('{}\n'.format(self.password))
+        self.session.write('{}\n'.format(self.target.password))
         resp = self.read_response(self.prompt)
         if resp[-len(self.prompt):] != self.prompt:
             raise Exception('Telnet: Username or password invalid')
@@ -189,8 +217,7 @@ def run_gdb(gdb_path, command_file):
 
 def get_service_pid(config):
     service = extract_service_name(config.program_path)
-    telnet = TelnetConnection(ip=config.target_ip, user=config.target_user, password=config.target_password,
-                              prompt=config.target_prompt)
+    telnet = TelnetConnection(config.target)
     return telnet.get_pid_of(service)
 
 
@@ -203,29 +230,9 @@ def generate_gdb_command_file(config):
     print "Generating gdb command file..."
 
     cmd_file = open(config.command_file, 'w')
-    cmd_file.write('set pagination off\n')
-    cmd_file.write('set solib-search-path ' + config.solib_search_path + '\n')
-    cmd_file.write('set auto-solib-add on\n')
-    cmd_file.write('dir ' + config.source_search_path + '\n')
-
-    if config.core_path:
-        cmd_file.write('core-file ' + config.core_path + '\n')
-    else:
-        if config.is_qnx_target:
-            cmd_file.write('target qnx ' + config.target_ip + ':' + config.target_debug_port + '\n')
-        else:
-            cmd_file.write('target extended-remote ' + config.target_ip + ':' + config.target_debug_port + '\n')
-
-    if config.program_path:
-        cmd_file.write('file ' + config.program_path + '\n')
-        if not config.core_path:
-            pid = get_service_pid(config)
-            if pid:
-                cmd_file.write('attach ' + pid + '\n')
-
-    if config.breakpoint_file:
-        cmd_file.write("source " + config.breakpoint_file + '\n')
-
+    for key, option in config.opts.iteritems():
+        if option.enabled:
+            cmd_file.write(option.name + " " + option.value + "\n")
     cmd_file.close()
 
     print 'Generated command file successfully! (' + cmd_file.name + ')'
@@ -271,7 +278,7 @@ def main():
     if config.generate_command_file:
         generate_gdb_command_file(config)
 
-    run_gdb(config.gdb_path, config.command_file)
+    #run_gdb(config.gdb_path, config.command_file)
     print 'GDT Session ended'
 
 
