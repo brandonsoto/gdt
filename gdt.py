@@ -153,7 +153,7 @@ class Config:
         if self.generate_command_file:
             self.init_search_paths()
             if not self.core_path:
-                self.opts["pid"].value = get_service_pid(self)
+                self.opts["pid"].value = get_service_pid(self.program_path, self.target)
                 self.opts["pid"].enabled = True
 
         print 'Initialized GDB options successfully!'
@@ -214,10 +214,9 @@ def run_gdb(gdb_path, command_file):
         print "Debugging session ended in an error: " + exception.message
 
 
-# TODO: remove config dependency
-def get_service_pid(config):
-    service = extract_service_name(config.program_path)
-    telnet = TelnetConnection(config.target)
+def get_service_pid(program_path, target):
+    service = extract_service_name(program_path)
+    telnet = TelnetConnection(target)
     return telnet.get_pid_of(service)
 
 
@@ -226,11 +225,11 @@ def extract_service_name(service_path):
     return os.path.splitext(filename)[0]
 
 
-def generate_gdb_command_file(config):
+def generate_gdb_command_file(outpath, options):
     print "Generating gdb command file..."
 
-    cmd_file = open(config.command_file, 'w')
-    for key, option in config.opts.iteritems():
+    cmd_file = open(outpath, 'w')
+    for key, option in options.iteritems():
         if option.enabled:
             cmd_file.write(option.name + " " + option.value + "\n")
     cmd_file.close()
@@ -280,7 +279,7 @@ def main():
     config = Config(args)
 
     if config.generate_command_file:
-        generate_gdb_command_file(config)
+        generate_gdb_command_file(config.command_file, config.opts)
 
     run_gdb(config.gdb_path, config.command_file)
     print 'GDT Session ended'
