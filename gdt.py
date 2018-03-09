@@ -153,8 +153,10 @@ class Config:
         if self.generate_command_file:
             self.init_search_paths()
             if self.program_path and not self.core_path:
-                self.opts["pid"].value = get_service_pid(self.program_path, self.target)
-                self.opts["pid"].enabled = True
+                telnet = TelnetConnection(self.target)
+                pid = telnet.get_pid_of(extract_service_name(self.program_path))
+                self.opts["pid"].value = pid
+                self.opts["pid"].enabled = pid is not None
 
         print 'Initialized GDB options successfully!'
 
@@ -200,9 +202,7 @@ class TelnetConnection:
     def get_pid_of(self, service):
         cmd_output = self.send_command("ps -A | grep " + service)
         match = re.search(r'\d+ .*' + service, cmd_output)
-        pid = match.group().split()[0] if match else None
-        print 'pid of ' + service + ' = ' + pid
-        return pid
+        return match.group().split()[0] if match else None
 
 
 def run_gdb(gdb_path, command_file):
@@ -212,12 +212,6 @@ def run_gdb(gdb_path, command_file):
     except Exception as exception:
         subprocess.call("reset")
         print "Debugging session ended in an error: " + exception.message
-
-
-def get_service_pid(program_path, target):
-    service = extract_service_name(program_path)
-    telnet = TelnetConnection(target)
-    return telnet.get_pid_of(service)
 
 
 def extract_service_name(service_path):
