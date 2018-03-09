@@ -84,20 +84,19 @@ class Config:
         self.excluded_dirs = data["excluded_dirs"]
         self.solib_separator = ";"
         self.source_separator = ";" if self.is_qnx_target else ":"
-        self.core_path = args.core if args.core else ""
-        self.program_path = args.program if args.program else ""
-        self.breakpoint_file = args.breakpoints if args.breakpoints else ""
+        self.core_path = args.core
+        self.program_path = args.program
+        self.breakpoint_file = args.breakpoints
         self.opts = OrderedDict([
             ("pagination", GDB_Option('set pagination', "off", True)),
             ("auto_solib", GDB_Option('set auto-solib-add', "on", True)),
             ("solib_path", GDB_Option('set solib-search-path', "", False)),
             ("source_path", GDB_Option('dir', "", False)),
-            ("program", GDB_Option('file', args.program, args.program is not None)),
-            ("core_file", GDB_Option('core-file', "", args.core is not None)),
-            ("qnx_target", GDB_Option('target qnx', self.target.full_address(), self.is_qnx_target and args.core is None)),
-            ("target", GDB_Option('target extended-remote', self.target.full_address(), not self.is_qnx_target and args.core is None)),
-            ("pid", GDB_Option('attach', "", args.program is not None and args.core is None)),
-            ("breakpoint", GDB_Option('source', args.breakpoints, args.breakpoints is not None))
+            ("program", GDB_Option('file', args.program, bool(args.program))),
+            ("core_file", GDB_Option('core-file', "", bool(args.core))),
+            ("target", GDB_Option('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address(), not bool(args.core))),
+            ("pid", GDB_Option('attach', "", bool(args.program) and not bool(args.core))),
+            ("breakpoint", GDB_Option('source', args.breakpoints, bool(args.breakpoints)))
         ])
 
         self.validate()
@@ -120,7 +119,7 @@ class Config:
             verify_dir_exists(dir_path)
 
     def validate_files(self):
-        for file_path in [self.program_path, self.core_path, self.gdb_path, self.command_file if not self.generate_command_file else None, self.breakpoint_file]:
+        for file_path in [self.program_path, self.core_path, self.gdb_path, self.command_file, self.breakpoint_file]:
             verify_file_exists(file_path)
 
     def validate_target(self):
@@ -245,21 +244,25 @@ def parse_args():
         '-p',
         '--program',
         type=str,
+        default="",
         help="Relative or absolute path to program executable (ends in *.full or *.debug)")
     parser.add_argument(
         '-c',
         '--core',
         type=str,
+        default="",
         help="Relative or absolute path to core file")
     parser.add_argument(
         '-b',
         '--breakpoints',
         type=str,
+        default="",
         help="Relative or absolute path to breakpoint/watchpoint file")
     parser.add_argument(
         '-cm',
         '--command',
         type=str,
+        default="",
         help="Relative or absolute path to command file. This arg cannot be used with any other arg. (This script will generate its own if not provided)")
     parser.add_argument(
         '-ot',
