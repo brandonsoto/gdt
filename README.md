@@ -2,8 +2,6 @@
 
 <a href="https://codeclimate.com/github/brandonsoto/gdt/maintainability"><img src="https://api.codeclimate.com/v1/badges/c203adcc92be588cf10d/maintainability" /></a>
 
-## What is this tool
-
 GDB Developer Tool (GDT) is a developer script to quickly and easily debug a core file or remote target.
 
 ## Features include
