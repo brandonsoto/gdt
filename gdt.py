@@ -1,10 +1,11 @@
 #!/usr/bin/python
 
+from collections import OrderedDict
+from multiprocessing.pool import ThreadPool
 import argparse
 import json
 import os
 import re
-from multiprocessing.pool import ThreadPool
 import socket
 import subprocess
 import telnetlib
@@ -69,7 +70,6 @@ class GDB_Option:
         self.enabled = enabled
 
 
-
 class Config:
     def __init__(self, args):
         data = json.load(open(os.path.join(GDT_DIR, 'gdt_config.json')))
@@ -87,18 +87,18 @@ class Config:
         self.core_path = args.core if args.core else ""
         self.program_path = args.program if args.program else ""
         self.breakpoint_file = args.breakpoints if args.breakpoints else ""
-        self.opts = {
-            "pagination": GDB_Option('set pagination', "off", True),
-            "auto_solib": GDB_Option('set auto-solib-add', "on", True),
-            "solib_path": GDB_Option('set solib-search-path', "", False),
-            "source_path" : GDB_Option('dir', "", False),
-            "core_file": GDB_Option('core-file', "", args.core is not None),
-            "qnx_target": GDB_Option('target qnx', self.target.full_address(), self.is_qnx_target),
-            "target": GDB_Option('target extended-remote', self.target.full_address(), not self.is_qnx_target),
-            "program": GDB_Option('file', args.program, args.program is not None),
-            "pid": GDB_Option('attach', "", args.program is not None and args.core is None),
-            "breakpoint": GDB_Option('source', args.breakpoints, args.breakpoints is not None)
-        }
+        self.opts = OrderedDict([
+            ("pagination", GDB_Option('set pagination', "off", True)),
+            ("auto_solib", GDB_Option('set auto-solib-add', "on", True)),
+            ("solib_path", GDB_Option('set solib-search-path', "", False)),
+            ("source_path", GDB_Option('dir', "", False)),
+            ("core_file", GDB_Option('core-file', "", args.core is not None)),
+            ("qnx_target", GDB_Option('target qnx', self.target.full_address(), self.is_qnx_target)),
+            ("target", GDB_Option('target extended-remote', self.target.full_address(), not self.is_qnx_target)),
+            ("program", GDB_Option('file', args.program, args.program is not None)),
+            ("pid", GDB_Option('attach', "", args.program is not None and args.core is None)),
+            ("breakpoint", GDB_Option('source', args.breakpoints, args.breakpoints is not None))
+        ])
 
         self.validate()
         self.init_paths()
