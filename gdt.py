@@ -9,18 +9,7 @@ import socket
 import subprocess
 import telnetlib
 
-SUCCESS_COLOR = '\033[92m'
-FAIL_COLOR = '\033[91m'
-END_COLOR = '\033[0m'
 GDT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-
-def print_success(string):
-    print SUCCESS_COLOR + string + END_COLOR
-
-
-def print_failure(string):
-    print FAIL_COLOR + string + END_COLOR
 
 
 def get_str_repr(string):
@@ -93,7 +82,7 @@ class Config:
         self.validate_files()
         self.validate_dirs()
         self.validate_target()
-        print_success('Validated configuration successfully!')
+        print 'Validated configuration successfully!'
 
     def validate_dirs(self):
         for dir_path in self.symbol_paths + [self.project_path]:
@@ -138,7 +127,7 @@ class Config:
         self.project_path = get_str_repr(os.path.abspath(self.project_path))
         self.gdb_path = os.path.abspath(self.gdb_path)
 
-        print_success('Initialized paths successfully!')
+        print 'Initialized paths successfully!'
 
 
 # thanks to Blayne Dennis for this class
@@ -183,8 +172,10 @@ class TelnetConnection:
 
     def get_pid_of(self, service):
         cmd_output = self.send_command("ps -A | grep " + service)
-        pid = re.search(r'\d+ .*' + service, cmd_output)
-        return pid.group().split()[0] if pid else None
+        match = re.search(r'\d+ .*' + service, cmd_output)
+        pid = match.group().split()[0] if match else None
+        print 'pid of ' + service + ' = ' + pid
+        return pid
 
 
 def run_gdb(gdb_path, command_file):
@@ -193,21 +184,14 @@ def run_gdb(gdb_path, command_file):
         subprocess.call([gdb_path, "--command=" + command_file])
     except Exception as exception:
         subprocess.call("reset")
-        print_failure("Debugging session ended in an error: " + exception.message)
+        print "Debugging session ended in an error: " + exception.message
 
 
 def get_service_pid(config):
     service = extract_service_name(config.program_path)
     telnet = TelnetConnection(ip=config.target_ip, user=config.target_user, password=config.target_password,
                               prompt=config.target_prompt)
-    pid = telnet.get_pid_of(service)
-
-    if pid:
-        print_success('pid of ' + service + ' = ' + pid)
-    else:
-        print_failure('pid of ' + service + ' not found')
-
-    return pid
+    return telnet.get_pid_of(service)
 
 
 def extract_service_name(service_path):
@@ -244,7 +228,7 @@ def generate_gdb_command_file(config):
 
     cmd_file.close()
 
-    print_success('Generated command file successfully! (' + cmd_file.name + ')')
+    print 'Generated command file successfully! (' + cmd_file.name + ')'
 
 
 def parse_args():
