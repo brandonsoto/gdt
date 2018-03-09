@@ -92,16 +92,16 @@ class Config:
             ("auto_solib", GDB_Option('set auto-solib-add', "on", True)),
             ("solib_path", GDB_Option('set solib-search-path', "", False)),
             ("source_path", GDB_Option('dir', "", False)),
-            ("core_file", GDB_Option('core-file', "", args.core is not None)),
-            ("qnx_target", GDB_Option('target qnx', self.target.full_address(), self.is_qnx_target)),
-            ("target", GDB_Option('target extended-remote', self.target.full_address(), not self.is_qnx_target)),
             ("program", GDB_Option('file', args.program, args.program is not None)),
+            ("core_file", GDB_Option('core-file', "", args.core is not None)),
+            ("qnx_target", GDB_Option('target qnx', self.target.full_address(), self.is_qnx_target and args.core is None)),
+            ("target", GDB_Option('target extended-remote', self.target.full_address(), not self.is_qnx_target and args.core is None)),
             ("pid", GDB_Option('attach', "", args.program is not None and args.core is None)),
             ("breakpoint", GDB_Option('source', args.breakpoints, args.breakpoints is not None))
         ])
 
         self.validate()
-        self.init_paths()
+        self.init_options()
 
     def validate(self):
         print 'Validating configuration...'
@@ -142,8 +142,8 @@ class Config:
         self.opts["source_path"].enabled = True
 
 
-    def init_paths(self):
-        print 'Initializing paths...'
+    def init_options(self):
+        print 'Initializing GDB options...'
 
         self.project_path = get_str_repr(os.path.abspath(self.project_path))
         self.gdb_path = os.path.abspath(self.gdb_path)
@@ -157,7 +157,7 @@ class Config:
                 self.opts["pid"].value = get_service_pid(self)
                 self.opts["pid"].enabled = True
 
-        print 'Initialized paths successfully!'
+        print 'Initialized GDB options successfully!'
 
 
 # thanks to Blayne Dennis for this class
@@ -278,7 +278,7 @@ def main():
     if config.generate_command_file:
         generate_gdb_command_file(config)
 
-    #run_gdb(config.gdb_path, config.command_file)
+    run_gdb(config.gdb_path, config.command_file)
     print 'GDT Session ended'
 
 
