@@ -64,8 +64,8 @@ class Target:
 
 
 class GDB_Option:
-    def __init__(self, name, value, enabled):
-        self.name = name
+    def __init__(self, prefix, value, enabled):
+        self.prefix = prefix
         self.value = value
         self.enabled = enabled
 
@@ -219,7 +219,7 @@ def generate_gdb_command_file(outpath, options):
     cmd_file = open(outpath, 'w')
     for key, option in options.iteritems():
         if option.enabled:
-            cmd_file.write(option.name + " " + option.value + "\n")
+            cmd_file.write(option.prefix + " " + option.value + "\n")
     cmd_file.close()
 
     print 'Generated command file successfully! (' + cmd_file.name + ')'
