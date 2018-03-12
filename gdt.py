@@ -51,6 +51,11 @@ def is_cpp_file(path):
     return any(path.endswith(extension) for extension in [".cpp", ".c", ".cc", ".h", ".hpp"])
 
 
+def extract_service_name(service_path):
+    filename = os.path.split(service_path)[1]
+    return os.path.splitext(filename)[0]
+
+
 class Target:
     def __init__(self, ip, user, password, port, prompt):
         self.ip = ip
@@ -109,13 +114,13 @@ class Config:
         self.validate_target()
         print 'Validated configuration successfully!'
 
-    def validate_dirs(self):
-        for dir_path in self.symbol_paths + [self.project_path]:
-            verify_dir_exists(dir_path)
-
     def validate_files(self):
         for file_path in [self.program_path, self.core_path, self.gdb_path, self.command_file, self.breakpoint_file]:
             verify_file_exists(file_path)
+
+    def validate_dirs(self):
+        for dir_path in self.symbol_paths + [self.project_path]:
+            verify_dir_exists(dir_path)
 
     def validate_target(self):
         ip = re.search(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", self.target.ip)
@@ -125,15 +130,6 @@ class Config:
         port = re.search(r"^\d+$", self.target.port)
         if not port:
             raise Exception('invalid target debug port - "' + self.target.port + '"')
-
-    def init_search_paths(self):
-        threadpool = ThreadPool(processes=len(self.symbol_paths) + 1)
-        paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
-        paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
-        self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
-        self.opts["solib_path"].enabled = True
-        self.opts["source_path"].value = paths[-1].get()
-        self.opts["source_path"].enabled = True
 
     def init_options(self):
         print 'Initializing GDB options...'
@@ -153,6 +149,15 @@ class Config:
                 self.opts["pid"].enabled = pid is not None
 
         print 'Initialized GDB options successfully!'
+
+    def init_search_paths(self):
+        threadpool = ThreadPool(processes=len(self.symbol_paths) + 1)
+        paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
+        paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
+        self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
+        self.opts["solib_path"].enabled = True
+        self.opts["source_path"].value = paths[-1].get()
+        self.opts["source_path"].enabled = True
 
 
 # thanks to Blayne Dennis for this class
@@ -206,11 +211,6 @@ def run_gdb(gdb_path, command_file):
     except Exception as exception:
         subprocess.call("reset")
         print "Debugging session ended in an error: " + exception.message
-
-
-def extract_service_name(service_path):
-    filename = os.path.split(service_path)[1]
-    return os.path.splitext(filename)[0]
 
 
 def generate_gdb_command_file(outpath, options):
