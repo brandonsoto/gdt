@@ -104,15 +104,10 @@ class Config:
 
     def validate(self):
         print 'Validating configuration...'
-        self.validate_args()
         self.validate_files()
         self.validate_dirs()
         self.validate_target()
         print 'Validated configuration successfully!'
-
-    def validate_args(self):
-        # TODO: need to implement
-        pass
 
     def validate_dirs(self):
         for dir_path in self.symbol_paths + [self.project_path]:
@@ -139,7 +134,6 @@ class Config:
         self.opts["solib_path"].enabled = True
         self.opts["source_path"].value = paths[-1].get()
         self.opts["source_path"].enabled = True
-
 
     def init_options(self):
         print 'Initializing GDB options...'
@@ -231,6 +225,11 @@ def generate_gdb_command_file(outpath, options):
     print 'Generated command file successfully! (' + cmd_file.name + ')'
 
 
+def validate_args(args):
+    if args.command and (args.breakpoints or args.core or args.program or args.other_target):
+        raise Exception("Cannot specify another when using --command")
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description='GDB Developer Tool: developer script to quickly and easily debug a remote target or core file.')
@@ -265,13 +264,14 @@ def parse_args():
         default=False,
         help="Use when the remote target is run on a non-QNX OS")
     args = parser.parse_args()
+    validate_args(args)
     return args
 
 
 def main():
     args = parse_args()
-    config = Config(args)
 
+    config = Config(args)
     if config.generate_command_file:
         generate_gdb_command_file(config.command_file, config.opts)
 
