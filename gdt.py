@@ -256,7 +256,7 @@ def parse_args():
         '--command',
         type=str,
         default="",
-        help="Relative or absolute path to command file. This arg cannot be used with any other arg. (This script will generate its own if not provided)")
+        help="Relative or absolute path to command file. This arg cannot be used with any other arg. (This script will usually generate a command file for you.)")
     parser.add_argument(
         '-ot',
         '--other-target',
