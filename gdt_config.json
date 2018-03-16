@@ -2,7 +2,6 @@
     "gdb_path": "/usr/bin/gdb",
     "project_root": "/home/brandon/Documents/gdt/Project",
     "symbol_paths": ["/home/brandon/Documents/gdt/Symbols", "/home/brandon/Documents/gdt/Project"],
-    "breakpoints": "",
     "excluded_dirs": [".svn", "bld", "build"],
     "target_ip": "192.168.33.42",
     "target_user": "vagrant",
