@@ -143,10 +143,7 @@ class Config:
         if self.generate_command_file:
             self.init_search_paths()
             if self.program_path and not self.core_path:
-                telnet = TelnetConnection(self.target)
-                pid = telnet.get_pid_of(extract_service_name(self.program_path))
-                self.opts["pid"].value = pid
-                self.opts["pid"].enabled = pid is not None
+                self.init_pid()
 
         print 'Initialized GDB options successfully!'
 
@@ -158,6 +155,12 @@ class Config:
         self.opts["solib_path"].enabled = True
         self.opts["source_path"].value = paths[-1].get()
         self.opts["source_path"].enabled = True
+
+    def init_pid(self):
+        telnet = TelnetConnection(self.target)
+        pid = telnet.get_pid_of(extract_service_name(self.program_path))
+        self.opts["pid"].value = pid
+        self.opts["pid"].enabled = pid is not None
 
 
 # thanks to Blayne Dennis for this class
