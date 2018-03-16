@@ -21,7 +21,6 @@ You are able to customize certain parts of GDT. All configuration can be found i
 - gdb_path - the full path to the GDB executable
 - project_path - the full path to the project's root directory (ex. D:/Projects/TestProject)
 - symbol_paths - the full paths to symbol directories (ex. D:/Project/TestProject/Symbols)
-- breakpoints - the full path to a breakpoint file to be used by GDB (empty if not used)
 - excluded_dirs - names of directories to be excluded from solib path and source path generation
 - target_ip - the target's IPv4 address
 - target_user - the target's username
