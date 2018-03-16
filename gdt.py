@@ -227,7 +227,7 @@ def generate_gdb_command_file(outpath, options):
 
 def validate_args(args):
     if args.command and (args.breakpoints or args.core or args.program or args.other_target):
-        raise Exception("Cannot specify another when using --command")
+        raise Exception("Cannot specify another arg when using --command")
 
 
 def parse_args():
