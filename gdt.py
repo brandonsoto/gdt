@@ -260,7 +260,7 @@ def parse_args():
         '-s',
         '--symbols',
         nargs='*',
-        help="List of symbol directory paths")
+        help="List of symbol directory paths ('symbol_paths' in gdt_config.json will be ignored when using this arg)")
     parser.add_argument(
         '-b',
         '--breakpoints',
@@ -272,7 +272,7 @@ def parse_args():
         '--command',
         type=str,
         default="",
-        help="Path to command file. This arg cannot be used with any other arg. (This script will generate a command file if this arg isn't used.)")
+        help="Path to command file. This arg cannot be used with any other arg. (This script will generate a command file if this arg isn't used)")
     parser.add_argument(
         '-ot',
         '--other-target',
