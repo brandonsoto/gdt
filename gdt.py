@@ -80,7 +80,7 @@ class Config:
         data = json.load(open(os.path.join(GDT_DIR, 'gdt_config.json')))
 
         self.is_qnx_target = not args.other_target
-        self.symbol_paths = data["symbol_paths"]
+        self.symbol_paths = args.symbols if args.symbols else data["symbol_paths"]
         self.generate_command_file = not args.command
         self.command_file = args.command
         self.target = Target(data["target_ip"], data["target_user"], data["target_password"], data["target_debug_port"], data["target_prompt"])
@@ -250,25 +250,30 @@ def parse_args():
         '--program',
         type=str,
         default="",
-        help="Relative or absolute path to program executable (ends in *.full or *.debug)")
+        help="Path to program executable (usually ends in *.full or *.debug)")
     parser.add_argument(
         '-c',
         '--core',
         type=str,
         default="",
-        help="Relative or absolute path to core file")
+        help="Path to core file")
+    parser.add_argument(
+        '-s',
+        '--symbols',
+        nargs='*',
+        help="List of symbol directory paths")
     parser.add_argument(
         '-b',
         '--breakpoints',
         type=str,
         default="",
-        help="Relative or absolute path to breakpoint/watchpoint file")
+        help="Path to breakpoint/watchpoint file")
     parser.add_argument(
         '-cm',
         '--command',
         type=str,
         default="",
-        help="Relative or absolute path to command file. This arg cannot be used with any other arg. (This script will usually generate a command file for you.)")
+        help="Path to command file. This arg cannot be used with any other arg. (This script will generate a command file if this arg isn't used.)")
     parser.add_argument(
         '-ot',
         '--other-target',
@@ -287,7 +292,7 @@ def main():
     if config.generate_command_file:
         generate_gdb_command_file(config.command_file, config.opts)
 
-    # run_gdb(config.gdb_path, config.command_file)
+    run_gdb(config.gdb_path, config.command_file)
     print 'GDT Session ended'
 
 
