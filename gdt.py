@@ -89,16 +89,13 @@ class Config:
         self.excluded_dirs = data["excluded_dirs"]
         self.solib_separator = ";"
         self.source_separator = ";" if self.is_qnx_target else ":"
-        self.core_path = args.core
-        self.program_path = args.program
-        self.breakpoint_file = args.breakpoints
         self.opts = OrderedDict([
             ("pagination", GDB_Option('set pagination', "off", True)),
             ("auto_solib", GDB_Option('set auto-solib-add', "on", True)),
             ("solib_path", GDB_Option('set solib-search-path', "", False)),
             ("source_path", GDB_Option('dir', "", False)),
             ("program", GDB_Option('file', args.program, bool(args.program))),
-            ("core_file", GDB_Option('core-file', "", bool(args.core))),
+            ("core", GDB_Option('core-file', args.core, bool(args.core))),
             ("target", GDB_Option('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address(), not bool(args.core))),
             ("pid", GDB_Option('attach', "", bool(args.program) and not bool(args.core))),
             ("breakpoint", GDB_Option('source', args.breakpoints, bool(args.breakpoints)))
@@ -115,7 +112,7 @@ class Config:
         print 'Validated configuration successfully!'
 
     def validate_files(self):
-        for file_path in [self.program_path, self.core_path, self.gdb_path, self.command_file, self.breakpoint_file]:
+        for file_path in [self.opts['program'].value, self.opts["core"].value, self.gdb_path, self.command_file, self.opts['breakpoint'].value]:
             verify_file_exists(file_path)
 
     def validate_dirs(self):
@@ -134,36 +131,50 @@ class Config:
     def init_options(self):
         print 'Initializing GDB options...'
 
-        self.project_path = get_str_repr(os.path.abspath(self.project_path))
-        self.gdb_path = os.path.abspath(self.gdb_path)
-        self.opts["program"].value = get_str_repr(os.path.abspath(self.program_path))
-        self.opts["core_file"].value = get_str_repr(os.path.abspath(self.core_path))
-        self.opts["breakpoint"].value = get_str_repr(os.path.abspath(self.breakpoint_file))
+        self.init_paths()
 
         if self.generate_command_file:
             self.command_file = os.path.join(GDT_DIR, "gdb_commands.txt")
             self.init_search_paths()
-            if self.program_path and not self.core_path:
+            if self.opts['program'].enabled and not self.opts['core'].enabled:
                 self.init_pid()
+            self.create_command_file()
 
         print 'Initialized GDB options successfully!'
 
+    def init_paths(self):
+        self.project_path = get_str_repr(os.path.abspath(self.project_path))
+        self.gdb_path = os.path.abspath(self.gdb_path)
+        self.opts["program"].value = get_str_repr(os.path.abspath(self.opts['program'].value))
+        self.opts["core"].value = get_str_repr(os.path.abspath(self.opts['core'].value))
+        self.opts["breakpoint"].value = get_str_repr(os.path.abspath(self.opts['breakpoint'].value))
+
+    def create_command_file(self):
+        print "Generating command file..."
+
+        cmd_file = open(self.command_file, 'w')
+        for key, option in self.opts.iteritems():
+            if option.enabled:
+                cmd_file.write(option.prefix + " " + option.value + "\n")
+        cmd_file.close()
+
+        print 'Generated command file successfully! (' + cmd_file.name + ')'
+
     def init_search_paths(self):
-        total_threads = len(self.symbol_paths) + (0 if self.core_path else 1)
+        total_threads = len(self.symbol_paths) + (0 if self.opts['core'].enabled else 1)
         threadpool = ThreadPool(processes=total_threads)
         paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
 
-        if not self.core_path:
+        if not self.opts['core'].enabled:
             paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
             self.opts["source_path"].value = paths[-1].get()
             self.opts["source_path"].enabled = True
-            print self.opts["source_path"].value
 
         self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
         self.opts["solib_path"].enabled = True
 
     def init_pid(self):
-        service_name = extract_service_name(self.program_path)
+        service_name = extract_service_name(self.opts['program'].value)
         print 'Getting pid of ' + service_name + '...'
         telnet = TelnetConnection(self.target)
         pid = telnet.get_pid_of(service_name)
@@ -225,18 +236,6 @@ def run_gdb(gdb_path, command_file):
         print "Debugging session ended in an error: " + exception.message
 
 
-def generate_gdb_command_file(outpath, options):
-    print "Generating gdb command file..."
-
-    cmd_file = open(outpath, 'w')
-    for key, option in options.iteritems():
-        if option.enabled:
-            cmd_file.write(option.prefix + " " + option.value + "\n")
-    cmd_file.close()
-
-    print 'Generated command file successfully! (' + cmd_file.name + ')'
-
-
 def validate_args(args):
     if args.command and (args.breakpoints or args.core or args.program or args.other_target):
         raise Exception("Cannot specify another arg when using --command")
@@ -287,11 +286,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-
     config = Config(args)
-    if config.generate_command_file:
-        generate_gdb_command_file(config.command_file, config.opts)
-
     run_gdb(config.gdb_path, config.command_file)
     print 'GDT Session ended'
 
