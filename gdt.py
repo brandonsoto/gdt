@@ -155,7 +155,6 @@ class Config:
         self.opts["solib_path"].enabled = True
         self.opts["source_path"].value = paths[-1].get()
         self.opts["source_path"].enabled = True
-        threadpool.close()
 
     def init_pid(self):
         telnet = TelnetConnection(self.target)
