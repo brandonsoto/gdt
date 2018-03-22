@@ -161,7 +161,7 @@ class Config:
         service_name = extract_service_name(self.program_path)
         print 'Getting pid of ' + service_name + '...'
         telnet = TelnetConnection(self.target)
-        pid = telnet.get_pid_of(extract_service_name(self.program_path))
+        pid = telnet.get_pid_of(service_name)
         self.opts["pid"].value = pid
         self.opts["pid"].enabled = pid is not None
         print 'Pid of ' + service_name + ' = ' + str(pid)
