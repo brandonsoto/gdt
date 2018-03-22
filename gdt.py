@@ -97,8 +97,8 @@ class Config:
             ("program", GDB_Option('file', args.program, bool(args.program))),
             ("core", GDB_Option('core-file', args.core, bool(args.core))),
             ("target", GDB_Option('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address(), not bool(args.core))),
-            ("pid", GDB_Option('attach', "", bool(args.program) and not bool(args.core))),
-            ("breakpoint", GDB_Option('source', args.breakpoints, bool(args.breakpoints)))
+            ("breakpoint", GDB_Option('source', args.breakpoints, bool(args.breakpoints))),
+            ("pid", GDB_Option('attach', "", False))
         ])
 
         self.validate()
