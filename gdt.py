@@ -158,10 +158,13 @@ class Config:
         self.opts["source_path"].enabled = True
 
     def init_pid(self):
+        service_name = extract_service_name(self.program_path)
+        print 'Getting pid of ' + service_name + '...'
         telnet = TelnetConnection(self.target)
         pid = telnet.get_pid_of(extract_service_name(self.program_path))
         self.opts["pid"].value = pid
         self.opts["pid"].enabled = pid is not None
+        print 'Pid of ' + service_name + ' = ' + str(pid)
 
 
 # thanks to Blayne Dennis for this class
