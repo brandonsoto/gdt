@@ -237,7 +237,7 @@ def run_gdb(gdb_path, command_file):
 
 
 def validate_args(args):
-    if args.command and (args.breakpoints or args.core or args.program or args.other_target):
+    if args.command and (args.breakpoints or args.core or args.program or args.other_target or args.symbols):
         raise Exception("Cannot specify another arg when using --command")
 
 
