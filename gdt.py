@@ -149,7 +149,7 @@ class Config:
         print 'Initialized GDB options successfully!'
 
     def init_search_paths(self):
-        total_threads= len(self.symbol_paths) + (0 if self.core_path else 1)
+        total_threads = len(self.symbol_paths) + (0 if self.core_path else 1)
         threadpool = ThreadPool(processes=total_threads)
         paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
 
