@@ -149,13 +149,18 @@ class Config:
         print 'Initialized GDB options successfully!'
 
     def init_search_paths(self):
-        threadpool = ThreadPool(processes=len(self.symbol_paths) + 1)
+        total_threads= len(self.symbol_paths) + (0 if self.core_path else 1)
+        threadpool = ThreadPool(processes=total_threads)
         paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
-        paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
+
+        if not self.core_path:
+            paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
+            self.opts["source_path"].value = paths[-1].get()
+            self.opts["source_path"].enabled = True
+            print self.opts["source_path"].value
+
         self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
         self.opts["solib_path"].enabled = True
-        self.opts["source_path"].value = paths[-1].get()
-        self.opts["source_path"].enabled = True
 
     def init_pid(self):
         service_name = extract_service_name(self.program_path)
@@ -282,7 +287,7 @@ def main():
     if config.generate_command_file:
         generate_gdb_command_file(config.command_file, config.opts)
 
-    run_gdb(config.gdb_path, config.command_file)
+    # run_gdb(config.gdb_path, config.command_file)
     print 'GDT Session ended'
 
 
