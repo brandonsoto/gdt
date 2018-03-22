@@ -161,8 +161,8 @@ class Config:
         print 'Generated command file successfully! (' + cmd_file.name + ')'
 
     def init_search_paths(self):
-        total_threads = len(self.symbol_paths) + (0 if self.opts['core'].enabled else 1)
-        threadpool = ThreadPool(processes=total_threads)
+        max_threads = len(self.symbol_paths) + (0 if self.opts['core'].enabled else 1)
+        threadpool = ThreadPool(processes=max_threads)
         paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
 
         if not self.opts['core'].enabled:
