@@ -82,7 +82,7 @@ class Config:
         self.is_qnx_target = not args.other_target
         self.symbol_paths = data["symbol_paths"]
         self.generate_command_file = not args.command
-        self.command_file = args.command if args.command else os.path.join(GDT_DIR, "gdb_commands.txt")
+        self.command_file = args.command
         self.target = Target(data["target_ip"], data["target_user"], data["target_password"], data["target_debug_port"], data["target_prompt"])
         self.gdb_path = data["gdb_path"]
         self.project_path = data["project_root"]
@@ -141,6 +141,7 @@ class Config:
         self.opts["breakpoint"].value = get_str_repr(os.path.abspath(self.breakpoint_file))
 
         if self.generate_command_file:
+            self.command_file = os.path.join(GDT_DIR, "gdb_commands.txt")
             self.init_search_paths()
             if self.program_path and not self.core_path:
                 self.init_pid()
