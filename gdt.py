@@ -161,10 +161,7 @@ class RemoteConfig(GeneratedConfig):
 
     def init_options(self):
         self.init_search_paths()
-        if self.use_ssh:
-            self.init_pid_ssh()
-        else:
-            self.init_pid_telnet()
+        self.init_pid()
         create_command_file(self)
 
     def init_search_paths(self):
@@ -178,25 +175,23 @@ class RemoteConfig(GeneratedConfig):
         # threadpool.close()  # TODO(brandon): check this on Windows
         print "Generated search paths successfully!"
 
-    def init_pid_telnet(self):
+    def init_pid(self):
         service_name = extract_service_name(self.opts['program'].value)
         print 'Getting pid of ' + service_name + '...'
-        telnet = TelnetConnection(self.target)
-        pid = telnet.get_pid_of(service_name)
-        self.opts["pid"].value = pid
-        self.opts["pid"].enabled = pid is not None
-        print 'pid of ' + service_name + ' = ' + str(pid)
-
-    def init_pid_ssh(self):
-        service_name = extract_service_name(self.opts['program'].value)
-        ssh_command = 'ssh ' + self.target.ssh_address() +  ' "ps -A | grep ' + service_name + '"'
-        print 'Getting pid of ' + service_name + '...'
-        cmd_output = subprocess.Popen(ssh_command, stdout=subprocess.PIPE, shell=True).stdout.read()
-        match = re.search(r'\d+ .*' + service_name, cmd_output)
+        output = self.ssh_pid(service_name) if self.use_ssh else self.telnet_pid(service_name)
+        match = re.search(r'\d+ .*' + service_name, output)
         pid = match.group().split()[0] if match else None
         self.opts["pid"].value = pid
         self.opts["pid"].enabled = pid is not None
         print 'pid of ' + service_name + ' = ' + str(pid)
+
+    def telnet_pid(self, service_name):
+        telnet = TelnetConnection(self.target)
+        return telnet.get_pid_of(service_name)
+
+    def ssh_pid(self, service_name):
+        ssh_command = 'ssh ' + self.target.ssh_address() + ' "ps -A | grep ' + service_name + '"'
+        return subprocess.Popen(ssh_command, stdout=subprocess.PIPE, shell=True).stdout.read()
 
 
 class CommandConfig(CommonConfig):
@@ -244,9 +239,7 @@ class TelnetConnection:
         return self.read_response(self.prompt)
 
     def get_pid_of(self, service):
-        cmd_output = self.send_command("ps -A | grep " + service)
-        match = re.search(r'\d+ .*' + service, cmd_output)
-        return match.group().split()[0] if match else None
+        return self.send_command("ps -A | grep " + service)
 
 
 def run_gdb(gdb_path, command_file):
