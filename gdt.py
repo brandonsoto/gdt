@@ -35,7 +35,7 @@ def generate_search_path(root_path, excluded_dirs, unary_func, separator):
     for root, dirs, files in os.walk(root_path, topdown=True):
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
         if any(unary_func(f) for f in files):
-            search_path.insert(0, get_str_repr(root))
+            search_path.insert(0, get_str_repr(os.path.abspath(root)))
     return separator.join(search_path)
 
 
@@ -107,7 +107,7 @@ class GeneratedConfig(CommonConfig):
     def __init__(self, args):
         CommonConfig.__init__(self)
         self.command_file = os.path.join(GDT_DIR, "gdb_commands.txt")
-        self.symbol_paths = args.symbols.name if args.symbols else self.json_data["symbol_paths"]
+        self.symbol_paths = args.symbols if args.symbols else self.json_data["symbol_paths"]
         self.source_separator = ";"
         self.opts = OrderedDict([
             ("pagination", DebugOption('set pagination', "off", True)),
@@ -259,7 +259,7 @@ def parse_args():
     subparsers = parser.add_subparsers()
 
     common_parser = argparse.ArgumentParser(add_help=False)
-    common_parser.add_argument('program', type=argparse.FileType(), help='Path to program (usually ends in .full or .debug)')
+    common_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Path to program (usually ends in .full or .debug)')
     common_parser.add_argument('-s', '--symbols', type=str, nargs="+", help='Path to command file')
 
     core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[common_parser])

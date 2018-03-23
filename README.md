@@ -6,7 +6,6 @@ GDB Developer Tool (GDT) is a developer script to quickly and easily debug a cor
 
 ## Features include
 
-- Debug a remote target
 - Debug a remote process
 - Debug a local core file
 
@@ -37,29 +36,34 @@ TODO
 ### Get usage help
 
 ```shell
-python gdt.py --help
 python gdt.py -h
+python gdt.py remote -h
+python gdt.py core -h
+python gdt.py cmd -h
 ```
 
 ### Debug a remote process
 
 ```shell
-python gdt.py -p D:/Project/bin/Service.full
+python gdt.py remote -p D:/Project/bin/Service.full
 
 # debug remote process with saved breakpoints
-python gdt.py -p D:/Project/bin/Service.full -b breakpoints.txt
+python gdt.py remote -b breakpoints.txt -p D:/Project/bin/Service.full
+
+# debug remote process with symbols (overrides symbols in gdt_config.json)
+python gdt.py remote -p D:/Project/bin/Service.full -s D:/Project/Symbols1 D:/Project/Symbols2
+```
+
+### Debug using a GDB command file
+
+```shell
+python gdt.py cmd D:/Project/gdb_commands.txt
 ```
 
 ### Debug a local core file
 
 ```shell
-python gdt.py -p D:/Project/bin/Service.full -c D:/Project/Core/Core.core
-```
-
-### Connect to remote target
-
-```shell
-python gdt.py
+python gdt.py core -c D:/Project/Core/Service.core -p D:/Project/bin/Service.full
 ```
 
 ## Resources
