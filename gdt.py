@@ -56,6 +56,16 @@ def extract_service_name(service_path):
     return os.path.splitext(filename)[0]
 
 
+def create_command_file(config):
+    print "Generating command file..."
+    cmd_file = open(config.command_file, 'w')
+    for key, option in config.opts.iteritems():
+        if option.enabled:
+            cmd_file.write(option.prefix + " " + option.value + "\n")
+    cmd_file.close()
+    print 'Generated command file successfully! (' + cmd_file.name + ')'
+
+
 class Target:
     def __init__(self, ip, user, password, port, prompt):
         self.ip = ip
@@ -71,57 +81,74 @@ class Target:
         return self.user + "@" + self.ip
 
 
-class GDB_Option:
+class DebugOption:
     def __init__(self, prefix, value, enabled):
         self.prefix = prefix
         self.value = value
         self.enabled = enabled
 
 
-class Config:
-    def __init__(self, args):
-        data = json.load(open(os.path.join(GDT_DIR, 'gdt_config.json')))
-
-        self.is_qnx_target = not args.other_target
-        self.symbol_paths = args.symbols if args.symbols else data["symbol_paths"]
-        self.generate_command_file = not args.command
-        self.command_file = args.command
-        self.target = Target(data["target_ip"], data["target_user"], data["target_password"], data["target_debug_port"], data["target_prompt"])
-        self.gdb_path = data["gdb_path"]
-        self.project_path = data["project_root"]
-        self.excluded_dirs = data["excluded_dirs"]
+class CommonConfig:
+    def __init__(self):
+        self.json_data = json.load(open(os.path.join(GDT_DIR, 'gdt_config.json')))
+        self.project_path = get_str_repr(os.path.abspath(self.json_data["project_root"]))
+        self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
+        self.excluded_dirs = self.json_data["excluded_dirs"]
         self.solib_separator = ";"
-        self.source_separator = ";" if self.is_qnx_target else ":"
-        self.use_ssh = args.ssh
-        self.opts = OrderedDict([
-            ("pagination", GDB_Option('set pagination', "off", True)),
-            ("auto_solib", GDB_Option('set auto-solib-add', "on", True)),
-            ("solib_path", GDB_Option('set solib-search-path', "", False)),
-            ("source_path", GDB_Option('dir', "", False)),
-            ("program", GDB_Option('file', args.program, bool(args.program))),
-            ("core", GDB_Option('core-file', args.core, bool(args.core))),
-            ("target", GDB_Option('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address(), not bool(args.core))),
-            ("breakpoint", GDB_Option('source', args.breakpoints, bool(args.breakpoints))),
-            ("pid", GDB_Option('attach', "", False))
-        ])
 
         self.validate()
-        self.init_options()
 
     def validate(self):
-        print 'Validating configuration...'
-        self.validate_files()
-        self.validate_dirs()
-        self.validate_target()
-        print 'Validated configuration successfully!'
+        verify_file_exists(self.gdb_path)
+        verify_dir_exists(self.project_path)
 
-    def validate_files(self):
-        for file_path in [self.opts['program'].value, self.opts["core"].value, self.gdb_path, self.command_file, self.opts['breakpoint'].value]:
-            verify_file_exists(file_path)
 
-    def validate_dirs(self):
-        for dir_path in self.symbol_paths + [self.project_path]:
+class GeneratedConfig(CommonConfig):
+    def __init__(self, args):
+        CommonConfig.__init__(self)
+        self.command_file = os.path.join(GDT_DIR, "gdb_commands.txt")
+        self.symbol_paths = args.symbols.name if args.symbols else self.json_data["symbol_paths"]
+        self.opts = OrderedDict([
+            ("pagination", DebugOption('set pagination', "off", True)),
+            ("auto_solib", DebugOption('set auto-solib-add', "on", True)),
+            ("solib_path", DebugOption('set solib-search-path', "", True)),
+            ("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name)), True)),
+        ])
+        for dir_path in self.symbol_paths:
             verify_dir_exists(dir_path)
+
+
+class CoreConfig(GeneratedConfig):
+    def __init__(self, args):
+        GeneratedConfig.__init__(self, args)
+        self.opts["core"] = DebugOption('core', get_str_repr(os.path.abspath(args.core.name)), True)
+        self.init_search_paths()
+        create_command_file(self)
+
+    def init_search_paths(self):
+        print "Generating search paths..."
+        max_threads = len(self.symbol_paths)
+        threadpool = ThreadPool(processes=max_threads)
+        paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
+        self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
+        # threadpool.close()  # TODO(brandon): check this on Windows
+        print "Generated search paths successfully!"
+
+
+class RemoteConfig(GeneratedConfig):
+    def __init__(self, args):
+        GeneratedConfig.__init__(self, args)
+        self.is_qnx_target = not args.other_target
+        self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"], self.json_data["target_prompt"])
+        self.source_separator = ";" if self.is_qnx_target else ":"
+        self.use_ssh = args.ssh
+        self.opts["target"] = DebugOption('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address(), True)
+        self.opts["source_path"] = DebugOption('dir', "", True)
+        self.opts["pid"] = DebugOption('attach', "", True)
+        self.opts["breakpoint"] = DebugOption('source', get_str_repr(os.path.abspath(args.breakpoints.name)) if args.breakpoints else None, bool(args.breakpoints))
+
+        self.validate_target()
+        self.init_options()
 
     def validate_target(self):
         ip = re.search(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", self.target.ip)
@@ -133,49 +160,22 @@ class Config:
             raise Exception('invalid target debug port - "' + self.target.port + '"')
 
     def init_options(self):
-        self.init_paths()
-
-        if self.generate_command_file:
-            self.command_file = os.path.join(GDT_DIR, "gdb_commands.txt")
-            self.init_search_paths()
-            if self.opts['program'].enabled and not self.opts['core'].enabled:
-                if self.use_ssh:
-                    self.init_pid_ssh()
-                else:
-                    self.init_pid_telnet()
-            self.create_command_file()
-
-    def init_paths(self):
-        self.project_path = get_str_repr(os.path.abspath(self.project_path))
-        self.gdb_path = os.path.abspath(self.gdb_path)
-        self.opts["program"].value = get_str_repr(os.path.abspath(self.opts['program'].value))
-        self.opts["core"].value = get_str_repr(os.path.abspath(self.opts['core'].value))
-        self.opts["breakpoint"].value = get_str_repr(os.path.abspath(self.opts['breakpoint'].value))
-
-    def create_command_file(self):
-        print "Generating command file..."
-
-        cmd_file = open(self.command_file, 'w')
-        for key, option in self.opts.iteritems():
-            if option.enabled:
-                cmd_file.write(option.prefix + " " + option.value + "\n")
-        cmd_file.close()
-
-        print 'Generated command file successfully! (' + cmd_file.name + ')'
+        self.init_search_paths()
+        if self.use_ssh:
+            self.init_pid_ssh()
+        else:
+            self.init_pid_telnet()
+        create_command_file(self)
 
     def init_search_paths(self):
         print "Generating search paths..."
-        max_threads = len(self.symbol_paths) + (0 if self.opts['core'].enabled else 1)
+        max_threads = len(self.symbol_paths) + 1
         threadpool = ThreadPool(processes=max_threads)
         paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
-
-        if not self.opts['core'].enabled:
-            paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
-            self.opts["source_path"].value = paths[-1].get()
-            self.opts["source_path"].enabled = True
-
+        paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
         self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
-        self.opts["solib_path"].enabled = True
+        self.opts["source_path"].value = paths[-1].get()
+        # threadpool.close()  # TODO(brandon): check this on Windows
         print "Generated search paths successfully!"
 
     def init_pid_telnet(self):
@@ -197,6 +197,12 @@ class Config:
         self.opts["pid"].value = pid
         self.opts["pid"].enabled = pid is not None
         print 'pid of ' + service_name + ' = ' + str(pid)
+
+
+class CommandConfig(CommonConfig):
+    def __init__(self, args):
+        CommonConfig.__init__(self)
+        self.command_file = args.input.name
 
 
 # thanks to Blayne Dennis for this class
@@ -252,62 +258,46 @@ def run_gdb(gdb_path, command_file):
         print "Debugging session ended in an error: " + exception.message
 
 
-def validate_args(args):
-    if args.command and (args.breakpoints or args.core or args.program or args.other_target or args.symbols):
-        raise Exception("Cannot specify another arg when using --command")
+def init_args():
+    parser = argparse.ArgumentParser(description='GDB Developer Tool: developer script to quickly and easily debug a remote target or core file.')
+    subparsers = parser.add_subparsers()
+
+    common_parser = argparse.ArgumentParser(add_help=False)
+    common_parser.add_argument('program', type=argparse.FileType(), help='Path to program (usually ends in .full or .debug)')
+    common_parser.add_argument('-s', '--symbols', type=str, nargs="+", help='Path to command file')
+
+    core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[common_parser])
+    core_parser.add_argument('-c', '--core', required=True, type=argparse.FileType(), help='Path to core file')
+    core_parser.set_defaults(func=lambda args: CoreConfig(args))
+
+    remote_parser = subparsers.add_parser('remote', help='Use when debugging a remote program', parents=[common_parser])
+    remote_parser.add_argument('-b', '--breakpoints', type=argparse.FileType(), help='Path to breakpoint file')
+    remote_parser.add_argument('-ot', '--other-target', action='store_true', default=False, help="Use when the remote target is run on a non-QNX OS")
+    remote_parser.add_argument('--ssh', action='store_true', default=False, help="Use ssh instead of telnet to retrieve pid")
+    remote_parser.set_defaults(func=lambda args: RemoteConfig(args))
+
+    cmd_parser = subparsers.add_parser('cmd', help='Use to run gdb with a command file')
+    cmd_parser.add_argument('input', type=argparse.FileType(), help='Path to command file')
+    cmd_parser.set_defaults(func=lambda args: CommandConfig(args))
+
+    return parser.parse_args()
+
+
+def close_files(args):
+    for arg in vars(args).iteritems():
+        if type(arg[1]) == file:
+            arg[1].close()
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description='GDB Developer Tool: developer script to quickly and easily debug a remote target or core file.')
-    parser.add_argument(
-        '-p',
-        '--program',
-        type=str,
-        default="",
-        help="Path to program executable (usually ends in *.full or *.debug)")
-    parser.add_argument(
-        '-c',
-        '--core',
-        type=str,
-        default="",
-        help="Path to core file")
-    parser.add_argument(
-        '-s',
-        '--symbols',
-        nargs='*',
-        help="List of symbol directory paths ('symbol_paths' in gdt_config.json will be ignored when using this arg)")
-    parser.add_argument(
-        '-b',
-        '--breakpoints',
-        type=str,
-        default="",
-        help="Path to breakpoint/watchpoint file")
-    parser.add_argument(
-        '-cm',
-        '--command',
-        type=str,
-        default="",
-        help="Path to command file. This arg cannot be used with any other arg. (This script will generate a command file if this arg isn't used)")
-    parser.add_argument(
-        '-ot',
-        '--other-target',
-        action='store_true',
-        default=False,
-        help="Use when the remote target is run on a non-QNX OS")
-    parser.add_argument(
-        '--ssh',
-        action='store_true',
-        default=False,
-        help="Use ssh instead of telnet to retrieve pid")
-    args = parser.parse_args()
-    validate_args(args)
+    args = init_args()
+    close_files(args)
     return args
 
 
 def main():
     args = parse_args()
-    config = Config(args)
+    config = args.func(args)
     run_gdb(config.gdb_path, config.command_file)
     print 'GDT Session ended'
 
