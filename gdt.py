@@ -142,13 +142,9 @@ class RemoteConfig(GeneratedConfig):
         self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"], self.json_data["target_prompt"])
         self.source_separator = ";" if self.is_qnx_target else ":"
         self.use_ssh = args.ssh
-        self.opts["target"] = DebugOption('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address(), True)
-        self.opts["source_path"] = DebugOption('dir', "", True)
-        self.opts["pid"] = DebugOption('attach', "", True)
-        self.opts["breakpoint"] = DebugOption('source', get_str_repr(os.path.abspath(args.breakpoints.name)) if args.breakpoints else None, bool(args.breakpoints))
 
         self.validate_target()
-        self.init_options()
+        self.init_options(args)
 
     def validate_target(self):
         ip = re.search(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", self.target.ip)
@@ -159,7 +155,11 @@ class RemoteConfig(GeneratedConfig):
         if not port:
             raise Exception('invalid target debug port - "' + self.target.port + '"')
 
-    def init_options(self):
+    def init_options(self, args):
+        self.opts["target"] = DebugOption('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address(), True)
+        self.opts["source_path"] = DebugOption('dir', "", True)
+        self.opts["pid"] = DebugOption('attach', "", True)
+        self.opts["breakpoint"] = DebugOption('source', get_str_repr(os.path.abspath(args.breakpoints.name)) if args.breakpoints else None, bool(args.breakpoints))
         self.init_search_paths()
         self.init_pid()
         create_command_file(self)
