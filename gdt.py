@@ -248,7 +248,13 @@ def run_gdb(gdb_path, command_file):
         print "Debugging session ended in an error: " + exception.message
 
 
-def init_args():
+def close_files(args):
+    for arg in vars(args).iteritems():
+        if type(arg[1]) == file:
+            arg[1].close()
+
+
+def parse_args():
     parser = argparse.ArgumentParser(description='GDB Developer Tool: developer script to quickly and easily debug a remote target or core file.')
     subparsers = parser.add_subparsers()
 
@@ -270,17 +276,7 @@ def init_args():
     cmd_parser.add_argument('input', type=argparse.FileType(), help='Path to command file')
     cmd_parser.set_defaults(func=lambda args: CommandConfig(args))
 
-    return parser.parse_args()
-
-
-def close_files(args):
-    for arg in vars(args).iteritems():
-        if type(arg[1]) == file:
-            arg[1].close()
-
-
-def parse_args():
-    args = init_args()
+    args = parser.parse_args()
     close_files(args)
     return args
 
