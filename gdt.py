@@ -130,8 +130,6 @@ class GeneratedConfig(CommonConfig):
             self.opts["source_path"].value = paths[-1].get()
 
         self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
-
-        # threadpool.close()  # TODO(brandon): check this on Windows
         print "Generated search paths successfully!"
 
 
