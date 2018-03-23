@@ -67,6 +67,9 @@ class Target:
     def full_address(self):
         return self.ip + ":" + self.port
 
+    def ssh_address(self):
+        return self.user + "@" + self.ip
+
 
 class GDB_Option:
     def __init__(self, prefix, value, enabled):
@@ -89,6 +92,7 @@ class Config:
         self.excluded_dirs = data["excluded_dirs"]
         self.solib_separator = ";"
         self.source_separator = ";" if self.is_qnx_target else ":"
+        self.use_ssh = args.ssh
         self.opts = OrderedDict([
             ("pagination", GDB_Option('set pagination', "off", True)),
             ("auto_solib", GDB_Option('set auto-solib-add', "on", True)),
@@ -129,18 +133,17 @@ class Config:
             raise Exception('invalid target debug port - "' + self.target.port + '"')
 
     def init_options(self):
-        print 'Initializing GDB options...'
-
         self.init_paths()
 
         if self.generate_command_file:
             self.command_file = os.path.join(GDT_DIR, "gdb_commands.txt")
             self.init_search_paths()
             if self.opts['program'].enabled and not self.opts['core'].enabled:
-                self.init_pid()
+                if self.use_ssh:
+                    self.init_pid_ssh()
+                else:
+                    self.init_pid_telnet()
             self.create_command_file()
-
-        print 'Initialized GDB options successfully!'
 
     def init_paths(self):
         self.project_path = get_str_repr(os.path.abspath(self.project_path))
@@ -161,6 +164,7 @@ class Config:
         print 'Generated command file successfully! (' + cmd_file.name + ')'
 
     def init_search_paths(self):
+        print "Generating search paths..."
         max_threads = len(self.symbol_paths) + (0 if self.opts['core'].enabled else 1)
         threadpool = ThreadPool(processes=max_threads)
         paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
@@ -172,15 +176,27 @@ class Config:
 
         self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
         self.opts["solib_path"].enabled = True
+        print "Generated search paths successfully!"
 
-    def init_pid(self):
+    def init_pid_telnet(self):
         service_name = extract_service_name(self.opts['program'].value)
         print 'Getting pid of ' + service_name + '...'
         telnet = TelnetConnection(self.target)
         pid = telnet.get_pid_of(service_name)
         self.opts["pid"].value = pid
         self.opts["pid"].enabled = pid is not None
-        print 'Pid of ' + service_name + ' = ' + str(pid)
+        print 'pid of ' + service_name + ' = ' + str(pid)
+
+    def init_pid_ssh(self):
+        service_name = extract_service_name(self.opts['program'].value)
+        ssh_command = 'ssh ' + self.target.ssh_address() +  ' "ps -A | grep ' + service_name + '"'
+        print 'Getting pid of ' + service_name + '...'
+        cmd_output = subprocess.Popen(ssh_command, stdout=subprocess.PIPE, shell=True).stdout.read()
+        match = re.search(r'\d+ .*' + service_name, cmd_output)
+        pid = match.group().split()[0] if match else None
+        self.opts["pid"].value = pid
+        self.opts["pid"].enabled = pid is not None
+        print 'pid of ' + service_name + ' = ' + str(pid)
 
 
 # thanks to Blayne Dennis for this class
@@ -279,6 +295,11 @@ def parse_args():
         action='store_true',
         default=False,
         help="Use when the remote target is run on a non-QNX OS")
+    parser.add_argument(
+        '--ssh',
+        action='store_true',
+        default=False,
+        help="Use ssh instead of telnet to retrieve pid")
     args = parser.parse_args()
     validate_args(args)
     return args
