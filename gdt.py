@@ -145,6 +145,7 @@ class RemoteConfig(GeneratedConfig):
 
         self.validate_target()
         self.init_options(args)
+        create_command_file(self)
 
     def validate_target(self):
         ip = re.search(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", self.target.ip)
@@ -162,7 +163,6 @@ class RemoteConfig(GeneratedConfig):
         self.opts["breakpoint"] = DebugOption('source', get_str_repr(os.path.abspath(args.breakpoints.name)) if args.breakpoints else None, bool(args.breakpoints))
         self.init_search_paths()
         self.init_pid()
-        create_command_file(self)
 
     def init_search_paths(self):
         print "Generating search paths..."
