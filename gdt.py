@@ -77,9 +77,6 @@ class Target:
     def full_address(self):
         return self.ip + ":" + self.port
 
-    def ssh_address(self):
-        return self.user + "@" + self.ip
-
 
 class DebugOption:
     def __init__(self, prefix, value, enabled):
@@ -147,7 +144,6 @@ class RemoteConfig(GeneratedConfig):
         self.is_qnx_target = not args.other_target
         self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"], self.json_data["target_prompt"])
         self.source_separator = ";" if self.is_qnx_target else ":"
-        self.use_ssh = args.ssh
 
         self.validate_target()
         self.init_options(args)
@@ -173,7 +169,7 @@ class RemoteConfig(GeneratedConfig):
     def init_pid(self):
         service_name = extract_service_name(self.opts['program'].value)
         print 'Getting pid of ' + service_name + '...'
-        output = self.ssh_pid(service_name) if self.use_ssh else self.telnet_pid(service_name)
+        output = self.telnet_pid(service_name)
         match = re.search(r'\d+ .*' + service_name, output)
         pid = match.group().split()[0] if match else None
         self.opts["pid"].value = pid
@@ -183,10 +179,6 @@ class RemoteConfig(GeneratedConfig):
     def telnet_pid(self, service_name):
         telnet = TelnetConnection(self.target)
         return telnet.get_pid_of(service_name)
-
-    def ssh_pid(self, service_name):
-        ssh_command = 'ssh ' + self.target.ssh_address() + ' "ps -A | grep ' + service_name + '"'
-        return subprocess.Popen(ssh_command, stdout=subprocess.PIPE, shell=True).stdout.read()
 
 
 class CommandConfig(CommonConfig):
@@ -267,7 +259,6 @@ def parse_args():
     remote_parser = subparsers.add_parser('remote', help='Use when debugging a remote program', parents=[common_parser])
     remote_parser.add_argument('-b', '--breakpoints', type=argparse.FileType(), help='Path to breakpoint file')
     remote_parser.add_argument('-ot', '--other-target', action='store_true', default=False, help="Use when the remote target is run on a non-QNX OS")
-    remote_parser.add_argument('--ssh', action='store_true', default=False, help="Use ssh instead of telnet to retrieve pid")
     remote_parser.set_defaults(func=lambda args: RemoteConfig(args))
 
     cmd_parser = subparsers.add_parser('cmd', help='Use to run gdb with a command file')
