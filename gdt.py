@@ -108,14 +108,31 @@ class GeneratedConfig(CommonConfig):
         CommonConfig.__init__(self)
         self.command_file = os.path.join(GDT_DIR, "gdb_commands.txt")
         self.symbol_paths = args.symbols.name if args.symbols else self.json_data["symbol_paths"]
+        self.source_separator = ";"
         self.opts = OrderedDict([
             ("pagination", DebugOption('set pagination', "off", True)),
             ("auto_solib", DebugOption('set auto-solib-add', "on", True)),
             ("solib_path", DebugOption('set solib-search-path', "", True)),
             ("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name)), True)),
+            ("source_path", DebugOption('dir', "", False))
         ])
         for dir_path in self.symbol_paths:
             verify_dir_exists(dir_path)
+
+    def init_search_paths(self):
+        print "Generating search paths..."
+        max_threads = len(self.symbol_paths) + (1 if self.opts["source_path"].enabled else 0)
+        threadpool = ThreadPool(processes=max_threads)
+        paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
+
+        if self.opts["source_path"].enabled:
+            paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
+            self.opts["source_path"].value = paths[-1].get()
+
+        self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
+
+        # threadpool.close()  # TODO(brandon): check this on Windows
+        print "Generated search paths successfully!"
 
 
 class CoreConfig(GeneratedConfig):
@@ -124,15 +141,6 @@ class CoreConfig(GeneratedConfig):
         self.opts["core"] = DebugOption('core', get_str_repr(os.path.abspath(args.core.name)), True)
         self.init_search_paths()
         create_command_file(self)
-
-    def init_search_paths(self):
-        print "Generating search paths..."
-        max_threads = len(self.symbol_paths)
-        threadpool = ThreadPool(processes=max_threads)
-        paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
-        self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
-        # threadpool.close()  # TODO(brandon): check this on Windows
-        print "Generated search paths successfully!"
 
 
 class RemoteConfig(GeneratedConfig):
@@ -145,6 +153,8 @@ class RemoteConfig(GeneratedConfig):
 
         self.validate_target()
         self.init_options(args)
+        self.init_search_paths()
+        self.init_pid()
         create_command_file(self)
 
     def validate_target(self):
@@ -157,23 +167,10 @@ class RemoteConfig(GeneratedConfig):
             raise Exception('invalid target debug port - "' + self.target.port + '"')
 
     def init_options(self, args):
+        self.opts["source_path"].enabled = True
         self.opts["target"] = DebugOption('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address(), True)
-        self.opts["source_path"] = DebugOption('dir', "", True)
         self.opts["pid"] = DebugOption('attach', "", True)
         self.opts["breakpoint"] = DebugOption('source', get_str_repr(os.path.abspath(args.breakpoints.name)) if args.breakpoints else None, bool(args.breakpoints))
-        self.init_search_paths()
-        self.init_pid()
-
-    def init_search_paths(self):
-        print "Generating search paths..."
-        max_threads = len(self.symbol_paths) + 1
-        threadpool = ThreadPool(processes=max_threads)
-        paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
-        paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
-        self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
-        self.opts["source_path"].value = paths[-1].get()
-        # threadpool.close()  # TODO(brandon): check this on Windows
-        print "Generated search paths successfully!"
 
     def init_pid(self):
         service_name = extract_service_name(self.opts['program'].value)
