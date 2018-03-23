@@ -260,7 +260,7 @@ def parse_args():
 
     common_parser = argparse.ArgumentParser(add_help=False)
     common_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Path to program (usually ends in .full or .debug)')
-    common_parser.add_argument('-s', '--symbols', type=str, nargs="+", help='Path to command file')
+    common_parser.add_argument('-s', '--symbols', type=str, nargs="+", help='List of symbol directories')
 
     core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[common_parser])
     core_parser.add_argument('-c', '--core', required=True, type=argparse.FileType(), help='Path to core file')
