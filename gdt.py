@@ -119,14 +119,15 @@ class GeneratedConfig(CommonConfig):
     def init_search_paths(self):
         print "Generating search paths..."
         max_threads = len(self.symbol_paths) + (1 if self.opts["source_path"].enabled else 0)
-        threadpool = ThreadPool(processes=max_threads)
-        paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
+        if max_threads > 0:
+            threadpool = ThreadPool(processes=max_threads)
+            paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
 
-        if self.opts["source_path"].enabled:
-            paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
-            self.opts["source_path"].value = paths[-1].get()
+            if self.opts["source_path"].enabled:
+                paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
+                self.opts["source_path"].value = paths[-1].get()
 
-        self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
+            self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
         print "Generated search paths successfully!"
 
 
