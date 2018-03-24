@@ -103,7 +103,7 @@ class CommonConfig:
 class GeneratedConfig(CommonConfig):
     def __init__(self, args):
         CommonConfig.__init__(self)
-        self.command_file = os.path.join(GDT_DIR, "gdb_commands.txt")
+        self.command_file = os.path.join(os.getcwd(), "gdb_commands.txt")
         self.symbol_paths = args.symbols if args.symbols else self.json_data["symbol_paths"]
         self.source_separator = ";"
         self.opts = OrderedDict([
