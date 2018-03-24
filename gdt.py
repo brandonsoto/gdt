@@ -170,16 +170,16 @@ class RemoteConfig(GeneratedConfig):
     def init_pid(self):
         service_name = extract_service_name(self.opts['program'].value)
         print 'Getting pid of ' + service_name + '...'
-        output = self.telnet_pid(service_name)
-        match = re.search(r'\d+ .*' + service_name, output)
-        pid = match.group().split()[0] if match else None
+        pid = self.telnet_pid(service_name)
         self.opts["pid"].value = pid
         self.opts["pid"].enabled = pid is not None
         print 'pid of ' + service_name + ' = ' + str(pid)
 
     def telnet_pid(self, service_name):
         telnet = TelnetConnection(self.target)
-        return telnet.get_pid_of(service_name)
+        output = telnet.get_pid_of(service_name)
+        match = re.search(r'\d+ .*' + service_name, output)
+        return match.group().split()[0] if match else None
 
 
 class CommandConfig(CommonConfig):
