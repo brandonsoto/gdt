@@ -11,7 +11,6 @@ import subprocess
 import telnetlib
 
 GDT_DIR = os.path.dirname(os.path.abspath(__file__))
-OUT_FILE = "gdb_commands.txt"
 
 
 def get_str_repr(string):
@@ -57,6 +56,16 @@ def extract_service_name(service_path):
     return os.path.splitext(filename)[0]
 
 
+def create_command_file(config):
+    print "Generating command file..."
+    cmd_file = open(config.command_file, 'w')
+    for key, option in config.opts.iteritems():
+        if option.enabled:
+            cmd_file.write(option.prefix + " " + option.value + "\n")
+    cmd_file.close()
+    print 'Generated command file successfully! (' + cmd_file.name + ')'
+
+
 class Target:
     def __init__(self, ip, user, password, port, prompt):
         self.ip = ip
@@ -94,10 +103,9 @@ class CommonConfig:
 class GeneratedConfig(CommonConfig):
     def __init__(self, args):
         CommonConfig.__init__(self)
+        self.command_file = os.path.join(os.getcwd(), "gdb_commands.txt")
         self.symbol_paths = args.symbols if args.symbols else self.json_data["symbol_paths"]
         self.source_separator = ";"
-        self.save_commands = args.save
-        self.command_strings = [self.gdb_path]
         self.opts = OrderedDict([
             ("pagination", DebugOption('set pagination', "off", True)),
             ("auto_solib", DebugOption('set auto-solib-add', "on", True)),
@@ -122,34 +130,13 @@ class GeneratedConfig(CommonConfig):
             self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
         print "Generated search paths successfully!"
 
-    def generate_command_strings(self):
-        print "Generating GDB commands..."
-        commands = [(option.prefix + " " + option.value) for key, option in self.opts.iteritems() if option.enabled]
-
-        if self.save_commands:
-            self.save_commands_to_file(commands)
-
-        for command in commands:
-            self.command_strings.append('-ex')
-            self.command_strings.append(command)
-        print "Generated GDB commands successfully!"
-
-    def save_commands_to_file(self, commands):
-        cmd_file = open(os.path.join(os.getcwd(), OUT_FILE), 'w')
-        for command in commands:
-            cmd_file.write(command + "\n")
-        cmd_file.close()
-        print 'Generated command file ' + cmd_file.name
-
-    def run_gdb(self):
-        subprocess.call(self.command_strings)
 
 class CoreConfig(GeneratedConfig):
     def __init__(self, args):
         GeneratedConfig.__init__(self, args)
         self.opts["core"] = DebugOption('core', get_str_repr(os.path.abspath(args.core.name)), True)
         self.init_search_paths()
-        self.generate_command_strings()
+        create_command_file(self)
 
 
 class RemoteConfig(GeneratedConfig):
@@ -163,7 +150,7 @@ class RemoteConfig(GeneratedConfig):
         self.init_options(args)
         self.init_search_paths()
         self.init_pid()
-        self.generate_command_strings()
+        create_command_file(self)
 
     def validate_target(self):
         ip = re.search(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", self.target.ip)
@@ -183,20 +170,22 @@ class RemoteConfig(GeneratedConfig):
     def init_pid(self):
         service_name = extract_service_name(self.opts['program'].value)
         print 'Getting pid of ' + service_name + '...'
-        telnet = TelnetConnection(self.target)
-        pid = telnet.get_pid_of(service_name)
+        pid = self.telnet_pid(service_name)
         self.opts["pid"].value = pid
         self.opts["pid"].enabled = pid is not None
         print 'pid of ' + service_name + ' = ' + str(pid)
+
+    def telnet_pid(self, service_name):
+        telnet = TelnetConnection(self.target)
+        output = telnet.get_pid_of(service_name)
+        match = re.search(r'\d+ .*' + service_name, output)
+        return match.group().split()[0] if match else None
 
 
 class CommandConfig(CommonConfig):
     def __init__(self, args):
         CommonConfig.__init__(self)
         self.command_file = args.input.name
-
-    def run_gdb(self):
-        subprocess.call([self.gdb_path, "--command=" + self.command_file])
 
 
 # thanks to Blayne Dennis for this class
@@ -220,7 +209,6 @@ class TelnetConnection:
         return self.session.read_until(prompt, self.TIMEOUT_SEC)
 
     def connect(self):
-        print "Connecting to " + self.target.full_address() + "..."
         try:
             self.session = telnetlib.Telnet(self.target.ip, self.PORT, self.TIMEOUT_SEC)
         except (socket.timeout, socket.error):
@@ -233,22 +221,19 @@ class TelnetConnection:
         resp = self.read_response(self.prompt)
         if resp[-len(self.prompt):] != self.prompt:
             raise Exception('Telnet: Username or password invalid')
-        print "Connected to " + self.target.full_address() + " successfully!"
 
     def send_command(self, cmd):
         self.session.write('{}\n'.format(cmd))
         return self.read_response(self.prompt)
 
-    def get_pid_of(self, service_name):
-        output = self.send_command("ps -A | grep " + service_name)
-        match = re.search(r'\d+ .*' + service_name, output)
-        return match.group().split()[0] if match else None
+    def get_pid_of(self, service):
+        return self.send_command("ps -A | grep " + service)
 
 
-def run_gdb(config):
+def run_gdb(gdb_path, command_file):
     print "Starting gdb..."
     try:
-        config.run_gdb()
+        subprocess.call([gdb_path, "--command=" + command_file])
     except Exception as exception:
         subprocess.call("reset")
         print "Debugging session ended in an error: " + exception.message
@@ -267,7 +252,6 @@ def parse_args():
     common_parser = argparse.ArgumentParser(add_help=False)
     common_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Path to program (usually ends in .full)')
     common_parser.add_argument('-s', '--symbols', type=str, nargs="+", help='List of symbol directories')
-    common_parser.add_argument('--save', action='store_true', default=False, help="Save generated command file (" + OUT_FILE + ") to the current working directory")
 
     core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[common_parser])
     core_parser.add_argument('-c', '--core', required=True, type=argparse.FileType(), help='Path to core file')
@@ -290,7 +274,7 @@ def parse_args():
 def main():
     args = parse_args()
     config = args.func(args)
-    config.run_gdb()
+    run_gdb(config.gdb_path, config.command_file)
     print 'GDT Session ended'
 
 
