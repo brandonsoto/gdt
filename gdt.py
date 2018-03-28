@@ -228,7 +228,7 @@ class TelnetConnection:
 
         self.read_response('login: ')
         self.session.write('{}\n'.format(self.target.user))
-        self.read_response('Password: ')
+        self.read_response('Password:')
         self.session.write('{}\n'.format(self.target.password))
         resp = self.read_response(self.prompt)
         if resp[-len(self.prompt):] != self.prompt:
