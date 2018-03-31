@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import re
+import signal
 import socket
 import subprocess
 import telnetlib
@@ -232,11 +233,21 @@ class TelnetConnection:
 
 def run_gdb(gdb_path, command_file):
     print "Starting gdb..."
+    returncode = None
+    process = None
     try:
-        subprocess.call([gdb_path, "--command=" + command_file])
+        process = subprocess.Popen(args=[gdb_path, '--command=' + command_file])
+        while returncode is None:
+            try:
+                returncode = process.poll()
+            except KeyboardInterrupt as e:
+                if process is not None and returncode is None:
+                    process.send_signal(signal.SIGINT)
     except Exception as exception:
-        subprocess.call("reset")
         print "Debugging session ended in an error: " + exception.message
+    finally:
+        if process is not None and returncode is None:
+            os.kill(process.pid, signal.SIGKILL)
 
 
 def close_files(args):
