@@ -230,6 +230,9 @@ class TelnetConnection:
     def get_pid_of(self, service):
         return self.send_command("ps -A | grep " + service)
 
+    def get_shared_dependencies(self, program_name):
+        return self.send_command('find . -name "' + program_name + '" -exec ldd {} \;')
+
 
 def run_gdb(gdb_path, command_file):
     print "Starting gdb..."
