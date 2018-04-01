@@ -239,15 +239,14 @@ def run_gdb(gdb_path, command_file):
         process = subprocess.Popen(args=[gdb_path, '--command=' + command_file])
         while returncode is None:
             try:
-                returncode = process.poll()
-            except KeyboardInterrupt as e:
-                if process is not None and returncode is None:
-                    process.send_signal(signal.SIGINT)
-    except Exception as exception:
-        print "Debugging session ended in an error: " + exception.message
+                returncode = process.wait()
+            except KeyboardInterrupt as interrupt:
+                continue  # ignore interrupt to allow GDB child process to handle it
+    except OSError as error:
+        print "GDT encountered an error: " + error.message
     finally:
         if process is not None and returncode is None:
-            os.kill(process.pid, signal.SIGKILL)
+            process.kill()
 
 
 def close_files(args):
