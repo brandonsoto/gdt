@@ -146,6 +146,7 @@ class RemoteConfig(GeneratedConfig):
         self.is_qnx_target = not args.other_target
         self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"], self.json_data["target_prompt"])
         self.source_separator = ";" if self.is_qnx_target else ":"
+        self.telnet = TelnetConnection(self.target)
 
         self.validate_target()
         self.init_options(args)
@@ -177,8 +178,7 @@ class RemoteConfig(GeneratedConfig):
         print 'pid of ' + service_name + ' = ' + str(pid)
 
     def telnet_pid(self, service_name):
-        telnet = TelnetConnection(self.target)
-        output = telnet.get_pid_of(service_name)
+        output = self.telnet.get_pid_of(service_name)
         match = re.search(r'\d+ .*' + service_name, output)
         return match.group().split()[0] if match else None
 
