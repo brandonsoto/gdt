@@ -54,11 +54,10 @@ def is_cpp_file(path):
 
 def create_command_file(config):
     print "Generating command file..."
-    cmd_file = open(config.command_file, 'w')
-    for key, option in config.opts.iteritems():
-        if option.enabled:
-            cmd_file.write(option.prefix + " " + option.value + "\n")
-    cmd_file.close()
+    with open(config.command_file, 'w') as cmd_file:
+        for key, option in config.opts.iteritems():
+            if option.enabled:
+                cmd_file.write(option.prefix + " " + option.value + "\n")
     print 'Generated command file successfully! (' + cmd_file.name + ')'
 
 
