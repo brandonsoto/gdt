@@ -104,13 +104,11 @@ class GeneratedConfig(CommonConfig):
         self.command_file = os.path.join(os.getcwd(), "gdb_commands.txt")
         self.symbol_paths = args.symbols if args.symbols else self.json_data["symbol_paths"]
         self.source_separator = ";"
-        self.opts = OrderedDict([
-            ("pagination", DebugOption('set pagination', "off", True)),
-            ("auto_solib", DebugOption('set auto-solib-add', "on", True)),
-            ("solib_path", DebugOption('set solib-search-path', "", True)),
-            ("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name)), True)),
-            ("source_path", DebugOption('dir', "", False))
-        ])
+        self.opts = OrderedDict([("pagination", DebugOption('set pagination', "off", True)),
+                                 ("auto_solib", DebugOption('set auto-solib-add', "on", True)),
+                                 ("solib_path", DebugOption('set solib-search-path', "", True)),
+                                 ("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name)), True)),
+                                 ("source_path", DebugOption('dir', "", False))])
         for dir_path in self.symbol_paths:
             verify_dir_exists(dir_path)
 
