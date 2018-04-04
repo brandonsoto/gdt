@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 from collections import OrderedDict
-from multiprocessing.pool import ThreadPool
 import argparse
 import json
 import os
@@ -117,17 +116,19 @@ class GeneratedConfig(CommonConfig):
 
     def init_search_paths(self):
         print "Generating search paths..."
-        max_threads = len(self.symbol_paths) + (1 if self.opts["source_path"].enabled else 0)
-        if max_threads > 0:
-            threadpool = ThreadPool(processes=max_threads)
-            paths = [threadpool.apply_async(generate_search_path, (path, self.excluded_dirs, is_shared_library, self.solib_separator)) for path in self.symbol_paths]
-
-            if self.opts["source_path"].enabled:
-                paths.append(threadpool.apply_async(generate_search_path, (self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
-                self.opts["source_path"].value = paths[-1].get()
-
-            self.opts["solib_path"].value = self.solib_separator.join([path.get() for path in paths[:-1]])
+        self.init_solib_search_path()
+        self.init_source_search_path()
         print "Generated search paths successfully!"
+
+    def init_solib_search_path(self):
+        solib_search_paths = []
+        for path in self.symbol_paths:
+            solib_search_paths.append(generate_search_path(path, self.excluded_dirs, is_shared_library, self.solib_separator))
+        self.opts["solib_path"].value = self.solib_separator.join(path for path in solib_search_paths)
+
+    def init_source_search_path(self):
+        if self.opts["source_path"].enabled:
+            self.opts["source_path"].value = generate_search_path(self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)
 
 
 class CoreConfig(GeneratedConfig):
