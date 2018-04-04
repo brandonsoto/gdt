@@ -6,7 +6,6 @@ import argparse
 import json
 import os
 import re
-import signal
 import socket
 import subprocess
 import telnetlib
@@ -52,7 +51,7 @@ def is_cpp_file(path):
     return any(path.endswith(extension) for extension in [".cpp", ".c", ".cc", ".h", ".hpp"])
 
 
-def extract_service_name(service_path):
+def extract_program_name(service_path):
     filename = os.path.split(service_path)[1]
     return os.path.splitext(filename)[0]
 
@@ -169,7 +168,7 @@ class RemoteConfig(GeneratedConfig):
         self.opts["breakpoint"] = DebugOption('source', get_str_repr(os.path.abspath(args.breakpoints.name)) if args.breakpoints else None, bool(args.breakpoints))
 
     def init_pid(self):
-        service_name = extract_service_name(self.opts['program'].value)
+        service_name = extract_program_name(self.opts['program'].value)
         print 'Getting pid of ' + service_name + '...'
         pid = self.telnet_pid(service_name)
         self.opts["pid"].value = pid
