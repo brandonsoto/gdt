@@ -238,7 +238,7 @@ def run_gdb(gdb_path, command_file):
         while returncode is None:
             try:
                 returncode = process.wait()
-            except KeyboardInterrupt as interrupt:
+            except KeyboardInterrupt:
                 continue  # ignore interrupt to allow GDB child process to handle it
     except OSError as error:
         print "GDT encountered an error: " + error.message
