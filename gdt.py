@@ -119,9 +119,7 @@ class GeneratedConfig(CommonConfig):
         print "Generated search paths successfully!"
 
     def init_solib_search_path(self):
-        solib_search_paths = []
-        for path in self.symbol_paths:
-            solib_search_paths.append(generate_search_path(path, self.excluded_dirs, is_shared_library, self.solib_separator))
+        solib_search_paths = [generate_search_path(path, self.excluded_dirs, is_shared_library, self.solib_separator) for path in self.symbol_paths]
         self.opts["solib_path"].value = self.solib_separator.join(path for path in solib_search_paths)
 
     def init_source_search_path(self):
