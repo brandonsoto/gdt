@@ -55,14 +55,6 @@ def extract_program_name(service_path):
     return os.path.splitext(filename)[0]
 
 
-def create_command_file(config):
-    print "Generating command file..."
-    with open(config.command_file, 'w') as cmd_file:
-        for key, option in config.opts.iteritems():
-            cmd_file.write(option.prefix + " " + option.value + "\n")
-    print 'Generated command file successfully! (' + cmd_file.name + ')'
-
-
 class Target:
     def __init__(self, ip, user, password, port, prompt):
         self.ip = ip
@@ -115,13 +107,20 @@ class GeneratedConfig(CommonConfig):
         self.opts["source_path"] = DebugOption('dir', generate_search_path(self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator))
         print "Generated search paths successfully!"
 
+    def create_command_file(self):
+        print "Generating command file..."
+        with open(self.command_file, 'w') as cmd_file:
+            for key, option in self.opts.iteritems():
+                cmd_file.write(option.prefix + " " + option.value + "\n")
+        print 'Generated command file successfully! (' + cmd_file.name + ')'
+
 
 class CoreConfig(GeneratedConfig):
     def __init__(self, args):
         GeneratedConfig.__init__(self, args)
         self.opts["core"] = DebugOption('core', get_str_repr(os.path.abspath(args.core.name)))
         self.init_search_paths()
-        create_command_file(self)
+        self.create_command_file()
 
 
 class RemoteConfig(GeneratedConfig):
@@ -136,7 +135,7 @@ class RemoteConfig(GeneratedConfig):
         self.init_options(args)
         self.init_search_paths()
         self.init_pid()
-        create_command_file(self)
+        self.create_command_file()
 
     def validate_target(self):
         ip = re.search(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", self.target.ip)
