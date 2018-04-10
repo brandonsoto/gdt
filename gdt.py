@@ -59,8 +59,7 @@ def create_command_file(config):
     print "Generating command file..."
     with open(config.command_file, 'w') as cmd_file:
         for key, option in config.opts.iteritems():
-            if option.enabled:
-                cmd_file.write(option.prefix + " " + option.value + "\n")
+            cmd_file.write(option.prefix + " " + option.value + "\n")
     print 'Generated command file successfully! (' + cmd_file.name + ')'
 
 
@@ -77,10 +76,9 @@ class Target:
 
 
 class DebugOption:
-    def __init__(self, prefix, value, enabled):
+    def __init__(self, prefix, value):
         self.prefix = prefix
         self.value = value
-        self.enabled = enabled
 
 
 class CommonConfig:
@@ -104,32 +102,24 @@ class GeneratedConfig(CommonConfig):
         self.command_file = os.path.join(os.getcwd(), "gdb_commands.txt")
         self.symbol_paths = args.symbols if args.symbols else self.json_data["symbol_paths"]
         self.source_separator = ";"
-        self.opts = OrderedDict([("pagination", DebugOption('set pagination', "off", True)),
-                                 ("auto_solib", DebugOption('set auto-solib-add', "on", True)),
-                                 ("solib_path", DebugOption('set solib-search-path', "", True)),
-                                 ("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name)), True)),
-                                 ("source_path", DebugOption('dir', "", True))])
+        self.opts = OrderedDict([("pagination", DebugOption('set pagination', "off")),
+                                 ("auto_solib", DebugOption('set auto-solib-add', "on")),
+                                 ("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name))))])
         for dir_path in self.symbol_paths:
             verify_dir_exists(dir_path)
 
     def init_search_paths(self):
         print "Generating search paths..."
-        self.init_solib_search_path()
-        self.init_source_search_path()
-        print "Generated search paths successfully!"
-
-    def init_solib_search_path(self):
         solib_search_paths = [generate_search_path(path, self.excluded_dirs, is_shared_library, self.solib_separator) for path in self.symbol_paths]
-        self.opts["solib_path"].value = self.solib_separator.join(path for path in solib_search_paths)
-
-    def init_source_search_path(self):
-        self.opts["source_path"].value = generate_search_path(self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)
+        self.opts["solib_path"] = DebugOption('set solib-search-path', self.solib_separator.join(path for path in solib_search_paths))
+        self.opts["source_path"] = DebugOption('dir', generate_search_path(self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator))
+        print "Generated search paths successfully!"
 
 
 class CoreConfig(GeneratedConfig):
     def __init__(self, args):
         GeneratedConfig.__init__(self, args)
-        self.opts["core"] = DebugOption('core', get_str_repr(os.path.abspath(args.core.name)), True)
+        self.opts["core"] = DebugOption('core', get_str_repr(os.path.abspath(args.core.name)))
         self.init_search_paths()
         create_command_file(self)
 
@@ -158,18 +148,19 @@ class RemoteConfig(GeneratedConfig):
             raise Exception('invalid target debug port - "' + self.target.port + '"')
 
     def init_options(self, args):
-        self.opts["source_path"].enabled = True
-        self.opts["target"] = DebugOption('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address(), True)
-        self.opts["pid"] = DebugOption('attach', "", True)
-        self.opts["breakpoint"] = DebugOption('source', get_str_repr(os.path.abspath(args.breakpoints.name)) if args.breakpoints else None, bool(args.breakpoints))
+        self.opts["target"] = DebugOption('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address())
+
+        if args.breakpoints:
+            self.opts["breakpoint"] = DebugOption('source', get_str_repr(os.path.abspath(args.breakpoints.name)))
 
     def init_pid(self):
         service_name = extract_program_name(self.opts['program'].value)
         print 'Getting pid of ' + service_name + '...'
         pid = self.telnet_pid(service_name)
-        self.opts["pid"].value = pid
-        self.opts["pid"].enabled = pid is not None
         print 'pid of ' + service_name + ' = ' + str(pid)
+
+        if pid:
+            self.opts["pid"] = DebugOption('attach', pid)
 
     def telnet_pid(self, service_name):
         output = self.telnet.get_pid_of(service_name)
