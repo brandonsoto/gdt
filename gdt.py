@@ -118,7 +118,6 @@ class GeneratedConfig(CommonConfig):
         self.opts[key] = option
 
 
-
 class CoreConfig(GeneratedConfig):
     def __init__(self, args):
         GeneratedConfig.__init__(self, args)
