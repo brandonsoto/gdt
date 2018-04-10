@@ -103,8 +103,8 @@ class GeneratedConfig(CommonConfig):
     def init_search_paths(self):
         print "Generating search paths..."
         solib_search_paths = [generate_search_path(path, self.excluded_dirs, is_shared_library, self.solib_separator) for path in self.symbol_paths]
-        self.opts["solib_path"] = DebugOption('set solib-search-path', self.solib_separator.join(path for path in solib_search_paths))
-        self.opts["source_path"] = DebugOption('dir', generate_search_path(self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator))
+        self.add_option('solib_path', DebugOption('set solib-search-path', self.solib_separator.join(path for path in solib_search_paths)))
+        self.add_option('source_path', DebugOption('dir', generate_search_path(self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
         print "Generated search paths successfully!"
 
     def create_command_file(self):
@@ -114,11 +114,15 @@ class GeneratedConfig(CommonConfig):
                 cmd_file.write(option.prefix + " " + option.value + "\n")
         print 'Generated command file successfully! (' + cmd_file.name + ')'
 
+    def add_option(self, key, option):
+        self.opts[key] = option
+
+
 
 class CoreConfig(GeneratedConfig):
     def __init__(self, args):
         GeneratedConfig.__init__(self, args)
-        self.opts["core"] = DebugOption('core', get_str_repr(os.path.abspath(args.core.name)))
+        self.add_option('core', DebugOption('core', get_str_repr(os.path.abspath(args.core.name))))
         self.init_search_paths()
         self.create_command_file()
 
@@ -147,10 +151,10 @@ class RemoteConfig(GeneratedConfig):
             raise Exception('invalid target debug port - "' + self.target.port + '"')
 
     def init_options(self, args):
-        self.opts["target"] = DebugOption('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address())
+        self.add_option('target', DebugOption('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address()))
 
         if args.breakpoints:
-            self.opts["breakpoint"] = DebugOption('source', get_str_repr(os.path.abspath(args.breakpoints.name)))
+            self.add_option('breakpoint', DebugOption('source', get_str_repr(os.path.abspath(args.breakpoints.name))))
 
     def init_pid(self):
         service_name = extract_program_name(self.opts['program'].value)
@@ -159,7 +163,7 @@ class RemoteConfig(GeneratedConfig):
         print 'pid of ' + service_name + ' = ' + str(pid)
 
         if pid:
-            self.opts["pid"] = DebugOption('attach', pid)
+            self.add_option('pid', DebugOption('attach', pid))
 
     def telnet_pid(self, service_name):
         output = self.telnet.get_pid_of(service_name)
