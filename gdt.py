@@ -85,7 +85,7 @@ class DebugOption:
 
 class CommonConfig:
     def __init__(self):
-        self.json_data = json.load(open(os.path.join(GDT_DIR, 'gdt_config.json')))
+        self.json_data = json.load(open(os.path.join(GDT_DIR, 'gdt_files', 'gdt_config.json')))
         self.project_path = get_str_repr(os.path.abspath(self.json_data["project_root"]))
         self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
         self.excluded_dirs = self.json_data["excluded_dirs"]
