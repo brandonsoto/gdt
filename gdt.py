@@ -108,7 +108,7 @@ class GeneratedConfig(CommonConfig):
                                  ("auto_solib", DebugOption('set auto-solib-add', "on", True)),
                                  ("solib_path", DebugOption('set solib-search-path', "", True)),
                                  ("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name)), True)),
-                                 ("source_path", DebugOption('dir', "", False))])
+                                 ("source_path", DebugOption('dir', "", True))])
         for dir_path in self.symbol_paths:
             verify_dir_exists(dir_path)
 
@@ -123,8 +123,7 @@ class GeneratedConfig(CommonConfig):
         self.opts["solib_path"].value = self.solib_separator.join(path for path in solib_search_paths)
 
     def init_source_search_path(self):
-        if self.opts["source_path"].enabled:
-            self.opts["source_path"].value = generate_search_path(self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)
+        self.opts["source_path"].value = generate_search_path(self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)
 
 
 class CoreConfig(GeneratedConfig):
