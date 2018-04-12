@@ -122,7 +122,7 @@ class CoreConfig(GeneratedConfig):
     def __init__(self, args):
         GeneratedConfig.__init__(self, args)
         self.init_search_paths()
-        self.add_option('core', DebugOption('core', get_str_repr(os.path.abspath(args.core.name))))
+        self.add_option('core', DebugOption('core-file', get_str_repr(os.path.abspath(args.core.name))))
         self.create_command_file()
 
 
