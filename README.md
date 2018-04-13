@@ -17,10 +17,10 @@ GDB Developer Tool (GDT) is a developer script to quickly and easily debug a cor
 
 You are able to customize certain parts of GDT. All configuration can be found in gdt_config.json. You won't need to modify all options, but the path options are of particular importance. The following can be customized:
 
-- gdb_path - the full path to the GDB executable
-- project_path - the full path to the project's root directory (ex. D:/Projects/TestProject)
-- symbol_paths - the full paths to symbol directories (ex. D:/Project/TestProject/Symbols)
-- excluded_dirs - names of directories to be excluded from solib path and source path generation
+- gdb_path - full path to the GDB executable
+- project_root_path - path to the project's root directory (ex. D:/Projects/TestProject)
+- symbol_root_paths - list of root symbol paths (ex. D:/Project/TestProject/Symbols)
+- excluded_dir_names - names of directories to be excluded from solib path and source path generation (ex. .svn, .git, .vscode, etc.)
 - target_ip - the target's IPv4 address
 - target_user - the target's username
 - target_password - the target's password
@@ -50,7 +50,7 @@ python gdt.py remote -p D:/Project/bin/Service.full
 # debug remote process with saved breakpoints
 python gdt.py remote -b breakpoints.txt -p D:/Project/bin/Service.full
 
-# debug remote process with symbols (symbol_paths in gdt_config.json will be ignored)
+# debug remote process with symbols (symbol_root_paths in gdt_config.json will be ignored)
 python gdt.py remote -p D:/Project/bin/Service.full -s D:/Project/Symbols1 D:/Project/Symbols2
 ```
 

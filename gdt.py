@@ -29,10 +29,10 @@ def verify_file_exists(path):
     verify_path_exists(path, os.path.isfile)
 
 
-def generate_search_path(root_path, excluded_dirs, unary_func, separator):
+def generate_search_path(root_path, excluded_dir_names, unary_func, separator):
     search_path = []
     for root, dirs, files in os.walk(root_path, topdown=True):
-        dirs[:] = [d for d in dirs if d not in excluded_dirs]
+        dirs[:] = [d for d in dirs if d not in excluded_dir_names]
         if any(unary_func(f) for f in files):
             search_path.insert(0, get_str_repr(os.path.abspath(root)))
     return separator.join(search_path)
@@ -76,9 +76,9 @@ class DebugOption:
 class CommonConfig:
     def __init__(self):
         self.json_data = json.load(open(os.path.join(GDT_DIR, 'gdt_files', 'gdt_config.json')))
-        self.project_path = get_str_repr(os.path.abspath(self.json_data["project_root"]))
+        self.project_path = get_str_repr(os.path.abspath(self.json_data["project_root_path"]))
         self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
-        self.excluded_dirs = self.json_data["excluded_dirs"]
+        self.excluded_dir_names = self.json_data["excluded_dir_names"]
         self.solib_separator = ";"
 
         self.validate()
@@ -92,19 +92,19 @@ class GeneratedConfig(CommonConfig):
     def __init__(self, args):
         CommonConfig.__init__(self)
         self.command_file = os.path.join(os.getcwd(), "gdb_commands.txt")
-        self.symbol_paths = args.symbols if args.symbols else self.json_data["symbol_paths"]
+        self.symbol_root_paths = args.symbols if args.symbols else self.json_data["symbol_root_paths"]
         self.source_separator = ";"
         self.opts = OrderedDict([("pagination", DebugOption('set pagination', "off")),
                                  ("auto_solib", DebugOption('set auto-solib-add', "on")),
                                  ("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name))))])
-        for dir_path in self.symbol_paths:
+        for dir_path in self.symbol_root_paths:
             verify_dir_exists(dir_path)
 
     def init_search_paths(self):
         print "Generating search paths..."
-        solib_search_paths = [generate_search_path(path, self.excluded_dirs, is_shared_library, self.solib_separator) for path in self.symbol_paths]
+        solib_search_paths = [generate_search_path(path, self.excluded_dir_names, is_shared_library, self.solib_separator) for path in self.symbol_root_paths]
         self.add_option('solib_path', DebugOption('set solib-search-path', self.solib_separator.join(path for path in solib_search_paths)))
-        self.add_option('source_path', DebugOption('dir', generate_search_path(self.project_path, self.excluded_dirs, is_cpp_file, self.source_separator)))
+        self.add_option('source_path', DebugOption('dir', generate_search_path(self.project_path, self.excluded_dir_names, is_cpp_file, self.source_separator)))
         print "Generated search paths successfully!"
 
     def create_command_file(self):

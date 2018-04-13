@@ -1,11 +1,11 @@
 {
-    "gdb_path": "PATH_TO_GDB",
-    "project_root": "PATH_TO_PROJECT_ROOT",
-    "symbol_paths": ["PATH_TO_SYMBOLS"],
-    "excluded_dirs": ["EXCLUDED_DIR_NAME"],
-    "target_ip": "REMOTE_TARGET_IP4_ADDRESS",
-    "target_user": "REMOTE_TARGET_USERNAME",
-    "target_password": "REMOTE_TARGET_PASSWORD",
-    "target_debug_port": "REMOTE_TARGET_PORT",
-    "target_prompt": "TELNET_CONNECTION_PROMPT"
+    "gdb_path": "/usr/bin/gdb",
+    "project_root_path": "/home/brandon/Documents/gdt/Project",
+    "symbol_root_paths": ["/home/brandon/Documents/gdt/Symbols", "/home/brandon/Documents/gdt/Project"],
+    "excluded_dir_names": [".svn", "bld", "build"],
+    "target_ip": "192.168.33.42",
+    "target_user": "vagrant",
+    "target_password": "vagrant",
+    "target_debug_port": "8000",
+    "target_prompt": "# "
 }
