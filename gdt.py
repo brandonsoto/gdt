@@ -134,13 +134,13 @@ class RemoteConfig(GeneratedConfig):
         self.source_separator = ";" if self.is_qnx_target else ":"
         self.telnet = TelnetConnection(self.target)
 
-        self.validate_target()
-        self.init_options(args)
+        self.init_target()
         self.init_search_paths()
+        self.init_breakpoints(args.breakpoints)
         self.init_pid()
         self.create_command_file()
 
-    def validate_target(self):
+    def init_target(self):
         ip = re.search(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", self.target.ip)
         if not ip:
             raise Exception('invalid target IPv4 address - "' + self.target.ip + '"')
@@ -149,11 +149,11 @@ class RemoteConfig(GeneratedConfig):
         if not port:
             raise Exception('invalid target debug port - "' + self.target.port + '"')
 
-    def init_options(self, args):
         self.add_option('target', DebugOption('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address()))
 
-        if args.breakpoints:
-            self.add_option('breakpoint', DebugOption('source', get_str_repr(os.path.abspath(args.breakpoints.name))))
+    def init_breakpoints(self, breakpoint_file):
+        if breakpoint_file:
+            self.add_option('breakpoint', DebugOption('source', get_str_repr(os.path.abspath(breakpoint_file))))
 
     def init_pid(self):
         service_name = extract_program_name(self.opts['program'].value)
