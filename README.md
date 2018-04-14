@@ -19,15 +19,15 @@ You are able to customize certain parts of GDT. All configuration can be found i
 
 ### gdt_config.json
 This file contains path and target configurations. The following can be customized:
-- _**gdb_path**_ - full path to the GDB executable
-- _**project_root_path**_ - path to the project's root directory
-- _**symbol_root_paths**_ - list of root symbol paths
-- _**excluded_dir_names**_ - names of directories to be excluded from solib path and source path generation (ex. .svn, .git, .vscode, etc.)
-- _**target_ip**_ - the target's IPv4 address
-- _**target_user**_ - the target's username
-- _**target_password**_ - the target's password
-- _**target_debug_port**_ - the port to connect GDB
-- _**target_prompt**_ - the target's command line prompt
+- **gdb_path** - full path to the GDB executable
+- **project_root_path** - path to the project's root directory
+- **symbol_root_paths** - list of root symbol paths
+- **excluded_dir_names** - names of directories to be excluded from solib path and source path generation (ex. .svn, .git, .vscode, etc.)
+- **target_ip** - the target's IPv4 address
+- **target_user** - the target's username
+- **target_password** - the target's password
+- **target_debug_port** - the port to connect GDB
+- **target_prompt** - the target's command line prompt
 
 ### gdbinit
 This file contains GDB commands to automatically execute during GDB startup. Feel free to add any custom routines or commands here.
