@@ -15,17 +15,22 @@ GDB Developer Tool (GDT) is a developer script to quickly and easily debug a cor
 
 ## Configuration
 
-You are able to customize certain parts of GDT. All configuration can be found in gdt_config.json. You won't need to modify all options, but the path options are of particular importance. The following can be customized:
+You are able to customize certain parts of GDT. All configuration can be found in gdt_config.json and gdbinit.
 
-- gdb_path - full path to the GDB executable
-- project_root_path - path to the project's root directory (ex. D:/Projects/TestProject)
-- symbol_root_paths - list of root symbol paths (ex. D:/Project/TestProject/Symbols)
-- excluded_dir_names - names of directories to be excluded from solib path and source path generation (ex. .svn, .git, .vscode, etc.)
-- target_ip - the target's IPv4 address
-- target_user - the target's username
-- target_password - the target's password
-- target_debug_port - the port to connect GDB
-- target_prompt - the target's command line prompt
+### gdt_config.json
+This file contains path and target configurations. The following can be customized:
+- _**gdb_path**_ - full path to the GDB executable
+- _**project_root_path**_ - path to the project's root directory
+- _**symbol_root_paths**_ - list of root symbol paths
+- _**excluded_dir_names**_ - names of directories to be excluded from solib path and source path generation (ex. .svn, .git, .vscode, etc.)
+- _**target_ip**_ - the target's IPv4 address
+- _**target_user**_ - the target's username
+- _**target_password**_ - the target's password
+- _**target_debug_port**_ - the port to connect GDB
+- _**target_prompt**_ - the target's command line prompt
+
+### gdbinit
+This file contains GDB commands to automatically execute during GDB startup. Feel free to add any custom routines or commands here.
 
 ## How can I install the tool
 
@@ -69,6 +74,7 @@ python gdt.py core -c D:/Project/Core/Service.core -p D:/Project/bin/Service.ful
 ## Resources
 - [GDB Manual](https://sourceware.org/gdb/onlinedocs/gdb/index.html#SEC_Contents)
 - [The Art of Debugging with GDB, DDD, and Eclipse](https://www.amazon.com/Art-Debugging-GDB-DDD-Eclipse/dp/1593271743/ref=sr_1_2?ie=UTF8&qid=1519965502&sr=8-2&keywords=gdb&dpID=51tKpAW8vyL&preST=_SX218_BO1,204,203,200_QL40_&dpSrc=srch)
+- [gdbinit](http://man7.org/linux/man-pages/man5/gdbinit.5.html)
 
 
 ## Known Issues

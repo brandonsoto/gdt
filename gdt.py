@@ -105,9 +105,7 @@ class GeneratedConfig(CommonConfig):
         self.command_file = os.path.join(os.getcwd(), "gdb_commands.txt")
         self.symbol_root_paths = args.symbols if args.symbols else self.json_data["symbol_root_paths"]
         self.source_separator = ";"
-        self.opts = OrderedDict([("pagination", DebugOption('set pagination', "off")),
-                                 ("auto_solib", DebugOption('set auto-solib-add', "on")),
-                                 ("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name))))])
+        self.opts = OrderedDict([("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name))))])
         self.program_name = extract_program_name(self.opts['program'].value)
         for dir_path in self.symbol_root_paths:
             verify_dir_exists(dir_path)
@@ -255,20 +253,20 @@ def parse_args():
     subparsers = parser.add_subparsers()
 
     common_parser = argparse.ArgumentParser(add_help=False)
-    common_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Path to program exectuable (usually ends in .full)')
-    common_parser.add_argument('-s', '--symbols', type=str, nargs="+", help='List of symbol directories')
+    common_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
+    common_parser.add_argument('-s', '--symbols', type=str, nargs="+", help='List of absolute or relative paths to root symbol directories')
 
     core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[common_parser])
-    core_parser.add_argument('-c', '--core', required=True, type=argparse.FileType(), help='Path to core file')
+    core_parser.add_argument('-c', '--core', required=True, type=argparse.FileType(), help='Absolute or relative path to core file')
     core_parser.set_defaults(func=lambda args: CoreConfig(args))
 
     remote_parser = subparsers.add_parser('remote', help='Use when debugging a remote program', parents=[common_parser])
-    remote_parser.add_argument('-b', '--breakpoints', type=argparse.FileType(), help='Path to breakpoint file')
+    remote_parser.add_argument('-b', '--breakpoints', type=argparse.FileType(), help='Absolute or relative path to breakpoint file')
     remote_parser.add_argument('-ot', '--other-target', action='store_true', default=False, help="Use when the remote target is run on a non-QNX OS")
     remote_parser.set_defaults(func=lambda args: RemoteConfig(args))
 
     cmd_parser = subparsers.add_parser('cmd', help='Use to run gdb with a command file')
-    cmd_parser.add_argument('input', type=argparse.FileType(), help='Path to command file')
+    cmd_parser.add_argument('input', type=argparse.FileType(), help='Absolute or relative path to command file')
     cmd_parser.set_defaults(func=lambda args: CommandConfig(args))
 
     args = parser.parse_args()

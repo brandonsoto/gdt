@@ -1,4 +1,6 @@
-define printqs5static
+# prints Qt5 string (http://silmor.de/qtstuff.printqstring.php)
+# GDB has to dive very deep into the internals of Qt in order to extract the data, so printing even a very simple QString takes about 10 seconds.
+define print_qstring_static
   set $d=$arg0.d
   printf "(Qt5 QString)0x%x length=%i: \"",&$arg0,$d->size
   set $i=0
@@ -14,7 +16,9 @@ define printqs5static
   printf "\"\n"
 end
 
-define printqs5dynamic
+# prints Qt5 string (http://silmor.de/qtstuff.printqstring.php)
+# GDB has to dive very deep into the internals of Qt in order to extract the data, so printing even a very simple QString takes about 10 seconds.
+define print_qstring_dynamic
   set $d=(QStringData*)$arg0.d
   printf "(Qt5 QString)0x%x length=%i: \"",&$arg0,$d->size
   set $i=0
@@ -28,3 +32,6 @@ define printqs5dynamic
   end
   printf "\"\n"
 end
+
+set pagination off
+set auto-solib-add on
