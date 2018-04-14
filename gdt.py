@@ -219,18 +219,12 @@ class TelnetConnection:
         self.send_command('PS1="{}"'.format(new_prompt))
         self.read_response(self.prompt)
 
-    def get_prompt(self):
-        return self.prompt
-
     def send_command(self, cmd):
         self.session.write('{}\n'.format(cmd))
         return self.read_response(self.prompt)
 
     def get_pid_of(self, service):
         return self.send_command("ps -A | grep " + service)
-
-    def get_shared_dependencies(self, program_name):
-        return self.send_command('find . -name "' + program_name + '" -exec ldd {} \;')
 
 
 def run_gdb(gdb_path, command_file):
