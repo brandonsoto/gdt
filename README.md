@@ -56,7 +56,7 @@ python gdt.py remote -p D:/Project/bin/Service.full
 python gdt.py remote -b breakpoints.txt -p D:/Project/bin/Service.full
 
 # debug remote process with symbols (symbol_root_paths in gdt_config.json will be ignored)
-python gdt.py remote -p D:/Project/bin/Service.full -s D:/Project/Symbols1 D:/Project/Symbols2
+python gdt.py remote -p D:/Project/bin/Service.full -s D:/Project/Symbols
 ```
 
 ### Debug using a GDB command file
