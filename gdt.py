@@ -62,9 +62,19 @@ class Target:
         self.password = password
         self.port = port
         self.prompt = prompt
+        self.validate()
 
     def full_address(self):
         return self.ip + ":" + self.port
+
+    def validate(self):
+        ip = re.search(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$", self.ip)
+        if not ip:
+            raise Exception('invalid target IPv4 address - "' + self.ip + '"')
+
+        port = re.search(r"^\d+$", self.port)
+        if not port:
+            raise Exception('invalid target debug port - "' + self.port + '"')
 
 
 class DebugOption:
@@ -97,6 +107,7 @@ class GeneratedConfig(CommonConfig):
         self.opts = OrderedDict([("pagination", DebugOption('set pagination', "off")),
                                  ("auto_solib", DebugOption('set auto-solib-add', "on")),
                                  ("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name))))])
+        self.program_name = extract_program_name(self.opts['program'].value)
         for dir_path in self.symbol_root_paths:
             verify_dir_exists(dir_path)
 
@@ -132,42 +143,32 @@ class RemoteConfig(GeneratedConfig):
         self.is_qnx_target = not args.other_target
         self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"], self.json_data["target_prompt"])
         self.source_separator = ";" if self.is_qnx_target else ":"
-
-        self.init_target()
         self.telnet = TelnetConnection(self.target)
+
         self.init_search_paths()
         self.init_breakpoints(args.breakpoints)
-        self.init_pid()
+        self.init_target()
         self.create_command_file()
-
-    def init_target(self):
-        ip = re.search(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$", self.target.ip)
-        if not ip:
-            raise Exception('invalid target IPv4 address - "' + self.target.ip + '"')
-
-        port = re.search(r"^\d+$", self.target.port)
-        if not port:
-            raise Exception('invalid target debug port - "' + self.target.port + '"')
-
-        self.add_option('target', DebugOption('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address()))
 
     def init_breakpoints(self, breakpoint_file):
         if breakpoint_file:
             self.add_option('breakpoint', DebugOption('source', get_str_repr(os.path.abspath(breakpoint_file.name))))
 
+    def init_target(self):
+        self.add_option('target', DebugOption('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address()))
+        self.init_pid()
+
     def init_pid(self):
-        service_name = extract_program_name(self.opts['program'].value)
-        print 'Getting pid of ' + service_name + '...'
-        pid = self.telnet_pid(service_name)
-        print 'pid of ' + service_name + ' = ' + str(pid)
+        print 'Getting pid of ' + self.program_name + '...'
+
+        output = self.telnet.get_pid_of(self.program_name)
+        match = re.search(r'\d+ .*' + self.program_name, output)
+        pid = match.group().split()[0] if match else None
 
         if pid:
             self.add_option('pid', DebugOption('attach', pid))
 
-    def telnet_pid(self, service_name):
-        output = self.telnet.get_pid_of(service_name)
-        match = re.search(r'\d+ .*' + service_name, output)
-        return match.group().split()[0] if match else None
+        print 'pid of ' + self.program_name + ' = ' + str(pid)
 
 
 class CommandConfig(CommonConfig):
