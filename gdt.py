@@ -132,9 +132,9 @@ class RemoteConfig(GeneratedConfig):
         self.is_qnx_target = not args.other_target
         self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"], self.json_data["target_prompt"])
         self.source_separator = ";" if self.is_qnx_target else ":"
-        self.telnet = TelnetConnection(self.target)
 
         self.init_target()
+        self.telnet = TelnetConnection(self.target)
         self.init_search_paths()
         self.init_breakpoints(args.breakpoints)
         self.init_pid()
@@ -153,7 +153,7 @@ class RemoteConfig(GeneratedConfig):
 
     def init_breakpoints(self, breakpoint_file):
         if breakpoint_file:
-            self.add_option('breakpoint', DebugOption('source', get_str_repr(os.path.abspath(breakpoint_file))))
+            self.add_option('breakpoint', DebugOption('source', get_str_repr(os.path.abspath(breakpoint_file.name))))
 
     def init_pid(self):
         service_name = extract_program_name(self.opts['program'].value)
