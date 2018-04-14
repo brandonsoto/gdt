@@ -57,12 +57,11 @@ def extract_program_name(service_path):
 
 
 class Target:
-    def __init__(self, ip, user, password, port, prompt):
+    def __init__(self, ip, user, password, port):
         self.ip = ip
         self.user = user
         self.password = password
         self.port = port
-        self.prompt = prompt
         self.validate()
 
     def full_address(self):
@@ -143,9 +142,9 @@ class RemoteConfig(GeneratedConfig):
     def __init__(self, args):
         GeneratedConfig.__init__(self, args)
         self.is_qnx_target = not args.other_target
-        self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"], self.json_data["target_prompt"])
+        self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"])
         self.source_separator = ";" if self.is_qnx_target else ":"
-        self.telnet = TelnetConnection(self.target)
+        self.telnet = TelnetConnection(self.target, self.json_data["target_prompt"])
 
         self.init_search_paths()
         self.init_breakpoints(args.breakpoints)
@@ -181,37 +180,51 @@ class CommandConfig(CommonConfig):
 
 # thanks to Blayne Dennis for this class
 class TelnetConnection:
-    def __init__(self, target):
-        self.TIMEOUT_SEC = 10
+    def __init__(self, target, prompt):
         self.PORT = 23
-        self.target = target
-        self.prompt = target.prompt
+        self.TIMEOUT = 10
         self.session = None
+        self.prompt = prompt
+        self.target = target
         self.connect()
+        self.change_prompt(self.prompt)
 
     def __del__(self):
         self.close()
 
     def close(self):
-        if self.session:
+        if self.session is not None:
             self.session.close()
 
     def read_response(self, prompt):
-        return self.session.read_until(prompt, self.TIMEOUT_SEC)
+        return self.session.read_until(prompt, self.TIMEOUT)
 
     def connect(self):
+        print 'Connecting to ' + self.target.ip + ':' + str(self.PORT)
         try:
-            self.session = telnetlib.Telnet(self.target.ip, self.PORT, self.TIMEOUT_SEC)
+            self.session = telnetlib.Telnet(self.target.ip, self.PORT, self.TIMEOUT)
         except (socket.timeout, socket.error):
-            raise Exception("Telnet: Server doesn't respond")
+            raise Exception('Telnet: Server doesn\'t respond')
 
+        print 'login...'
         self.read_response('login: ')
         self.session.write('{}\n'.format(self.target.user))
+        print 'password...'
         self.read_response('Password:')
         self.session.write('{}\n'.format(self.target.password))
+        print 'reading final...'
         resp = self.read_response(self.prompt)
-        if resp[-len(self.prompt):] != self.prompt:
+        if resp[-2:] != self.prompt:
             raise Exception('Telnet: Username or password invalid')
+
+    def change_prompt(self, new_prompt):
+        self.prompt = new_prompt
+        self.send_command('PS1="{}"'.format(new_prompt))
+        # because prompt from echo command was wrongly interpreted as final one
+        self.read_response(self.prompt)
+
+    def get_prompt(self):
+        return self.prompt
 
     def send_command(self, cmd):
         self.session.write('{}\n'.format(cmd))
