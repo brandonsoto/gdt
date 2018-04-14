@@ -206,13 +206,10 @@ class TelnetConnection:
         except (socket.timeout, socket.error):
             raise Exception('Telnet: Server doesn\'t respond')
 
-        print 'login...'
         self.read_response('login: ')
         self.session.write('{}\n'.format(self.target.user))
-        print 'password...'
         self.read_response('Password:')
         self.session.write('{}\n'.format(self.target.password))
-        print 'reading final...'
         resp = self.read_response(self.prompt)
         if resp[-2:] != self.prompt:
             raise Exception('Telnet: Username or password invalid')
