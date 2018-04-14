@@ -69,6 +69,9 @@ python gdt.py cmd Project/gdb_commands.txt
 
 ```shell
 python gdt.py core -c bin/Service.core -p bin/Service.full
+
+# debug core file with symbols (symbol_root_paths in gdt_config.json will be ignored)
+python gdt.py core -c bin/Service.core -p bin/Service.full -s bin/Symbols/
 ```
 
 ## Resources
