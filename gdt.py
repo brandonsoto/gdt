@@ -10,6 +10,7 @@ import subprocess
 import telnetlib
 
 GDT_DIR = os.path.dirname(os.path.abspath(__file__))
+GDT_CONFIG_DIR = os.path.join(GDT_DIR, 'gdt_files')
 
 
 def get_str_repr(string):
@@ -85,7 +86,7 @@ class DebugOption:
 
 class CommonConfig:
     def __init__(self):
-        self.json_data = json.load(open(os.path.join(GDT_DIR, 'gdt_files', 'gdt_config.json')))
+        self.json_data = json.load(open(os.path.join(GDT_CONFIG_DIR, 'gdt_config.json')))
         self.project_path = get_str_repr(os.path.abspath(self.json_data["project_root_path"]))
         self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
         self.excluded_dir_names = self.json_data["excluded_dir_names"]
@@ -120,9 +121,12 @@ class GeneratedConfig(CommonConfig):
 
     def create_command_file(self):
         print "Generating command file..."
+        gdbinit = os.path.join(GDT_CONFIG_DIR, 'gdbinit')
         with open(self.command_file, 'w') as cmd_file:
+            if os.path.isfile(gdbinit):
+                cmd_file.write(open(gdbinit, 'r').read())
             for key, option in self.opts.iteritems():
-                cmd_file.write(option.prefix + " " + option.value + "\n")
+                cmd_file.write("\n" + option.prefix + " " + option.value)
         print 'Generated command file successfully! (' + cmd_file.name + ')'
 
     def add_option(self, key, option):
