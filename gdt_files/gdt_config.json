@@ -1,11 +1,11 @@
 {
-    "gdb_path": "/usr/bin/gdb",
-    "project_root_path": "/home/brandon/Documents/gdt/Project",
-    "symbol_root_paths": ["/home/brandon/Documents/gdt/Symbols", "/home/brandon/Documents/gdt/Project"],
+    "gdb_path": "GDB_PATH",
+    "project_root_path": "PROJECT_ROOT",
+    "symbol_root_paths": ["SYMBOL_ROOT_PATH"],
     "excluded_dir_names": [".git", ".vscode", ".svn"],
-    "target_ip": "192.168.33.42",
-    "target_user": "vagrant",
-    "target_password": "vagrant",
-    "target_debug_port": "8000",
-    "target_prompt": "# "
+    "target_ip": "TARGET_IP4",
+    "target_user": "TARGET_USER",
+    "target_password": "TARGET_PASSWORD",
+    "target_debug_port": "DEBUG_PORT",
+    "target_prompt": "TELNET_PROMPT"
 }
