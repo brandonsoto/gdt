@@ -217,7 +217,6 @@ class TelnetConnection:
     def change_prompt(self, new_prompt):
         self.prompt = new_prompt
         self.send_command('PS1="{}"'.format(new_prompt))
-        # because prompt from echo command was wrongly interpreted as final one
         self.read_response(self.prompt)
 
     def get_prompt(self):
