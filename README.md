@@ -15,7 +15,7 @@ GDB Developer Tool (GDT) is a developer script to quickly and easily debug a cor
 
 ## Configuration
 
-You are able to customize certain parts of GDT. All configuration can be found in gdt_config.json and gdbinit.
+You are able to customize certain parts of GDT. All configuration can be found in `gdt_config.json` and `gdbinit`.
 
 ### gdt_config.json
 This file contains path and target configurations. The following can be customized:
