@@ -141,7 +141,7 @@ class RemoteConfig(GeneratedConfig):
         self.create_command_file()
 
     def init_target(self):
-        ip = re.search(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", self.target.ip)
+        ip = re.search(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$", self.target.ip)
         if not ip:
             raise Exception('invalid target IPv4 address - "' + self.target.ip + '"')
 
