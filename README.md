@@ -15,9 +15,9 @@ GDB Developer Tool (GDT) is a developer script to quickly and easily debug a cor
 
 ## Configuration
 
-You are able to customize certain parts of GDT. All configuration can be found in `gdt_config.json` and `gdbinit`.
+You are able to customize certain parts of GDT. All configuration can be found in `config.json` and `gdbinit`.
 
-### gdt_config.json
+### config.json
 This file contains path and target configurations. The following can be customized:
 - **gdb_path** - full path to the GDB executable
 - **project_root_path** - path to the project's root directory
@@ -55,7 +55,7 @@ python gdt.py remote -p bin/Service.full
 # debug remote process with saved breakpoints
 python gdt.py remote -b breakpoints.txt -p bin/Service.full
 
-# debug remote process with symbols (symbol_root_paths in gdt_config.json will be ignored)
+# debug remote process with symbols (symbol_root_paths in config.json will be ignored)
 python gdt.py remote -p bin/Service.full -s bin/Symbols/
 ```
 
@@ -70,7 +70,7 @@ python gdt.py cmd Project/gdb_commands.txt
 ```shell
 python gdt.py core -c bin/Service.core -p bin/Service.full
 
-# debug core file with symbols (symbol_root_paths in gdt_config.json will be ignored)
+# debug core file with symbols (symbol_root_paths in config.json will be ignored)
 python gdt.py core -c bin/Service.core -p bin/Service.full -s bin/Symbols/
 ```
 
