@@ -51,8 +51,8 @@ def is_cpp_file(path):
     return any(path.endswith(extension) for extension in [".cpp", ".c", ".cc", ".h", ".hpp"])
 
 
-def extract_program_name(service_path):
-    filename = os.path.split(service_path)[1]
+def extract_program_name(program_path):
+    filename = os.path.split(program_path)[1]
     return os.path.splitext(filename)[0]
 
 
