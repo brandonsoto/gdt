@@ -256,7 +256,7 @@ def parse_args():
 
     common_parser = argparse.ArgumentParser(add_help=False)
     common_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
-    common_parser.add_argument('-s', '--symbols', type=str, nargs="+", help='List of absolute or relative paths to root symbol directories')
+    common_parser.add_argument('-s', '--symbols', type=str, nargs="+", help='List of absolute or relative paths to root symbol directories (symbol_root_paths in config.json will be ignored)')
 
     core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[common_parser])
     core_parser.add_argument('-c', '--core', required=True, type=argparse.FileType(), help='Absolute or relative path to core file')
