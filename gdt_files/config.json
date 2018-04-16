@@ -3,6 +3,7 @@
     "project_root_path": "PROJECT_ROOT",
     "symbol_root_paths": ["SYMBOL_ROOT_PATH"],
     "excluded_dir_names": [".git", ".vscode", ".svn"],
+    "output_dir": "OUTPUT_DIR",
     "target_ip": "TARGET_IP4",
     "target_user": "TARGET_USER",
     "target_password": "TARGET_PASSWORD",

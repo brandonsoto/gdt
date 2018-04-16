@@ -85,15 +85,13 @@ class DebugOption:
 
 class CommonConfig:
     def __init__(self):
+        print 'Reading configuration...'
         self.json_data = json.load(open(os.path.join(GDT_CONFIG_DIR, 'config.json')))
         self.project_path = get_str_repr(os.path.abspath(self.json_data["project_root_path"]))
         self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
         self.excluded_dir_names = self.json_data["excluded_dir_names"]
         self.solib_separator = ";"
 
-        self.validate()
-
-    def validate(self):
         verify_file_exists(self.gdb_path)
         verify_dir_exists(self.project_path)
 
@@ -101,12 +99,13 @@ class CommonConfig:
 class GeneratedConfig(CommonConfig):
     def __init__(self, args):
         CommonConfig.__init__(self)
-        self.command_file = os.path.join(os.getcwd(), "gdb_commands.txt")
+        self.output_dir = os.path.abspath(self.json_data["output_dir"])
+        self.command_file = os.path.join(self.output_dir, "gdb_commands.txt")
         self.symbol_root_paths = args.symbols if args.symbols else self.json_data["symbol_root_paths"]
         self.source_separator = ";"
         self.opts = OrderedDict([("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name))))])
         self.program_name = extract_program_name(self.opts['program'].value)
-        for dir_path in self.symbol_root_paths:
+        for dir_path in self.symbol_root_paths + [self.output_dir]:
             verify_dir_exists(dir_path)
 
     def init_search_paths(self):
