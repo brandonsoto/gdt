@@ -171,18 +171,20 @@ class ConfigOption:
             if self.value == "" and self.default_value:
                 self.value = self.default_value
             elif self.validate_func:
-                value = self.validate_func(self.value)
-                while not value:
-                    print '"{}" {} Enter again...'.format(self.value, self.error_str)
-                    value = raw_input(self.desc)
-                    self.value = self.default_value if value == "" and self.default_value else value
-                    value = self.validate_func(self.value)
-                self.value = value
+                self.get_valid_value()
+
+    def get_valid_value(self):
+        value = self.validate_func(self.value)
+        while not value:
+            print '"{}" {} Enter again...'.format(self.value, self.error_str)
+            value = raw_input(self.desc)
+            value = self.default_value if value == "" and self.default_value else value
+            value = self.validate_func(value)
+        self.value = value
 
 
 class CommonConfig:
     def __init__(self, args):
-        print 'Reading configuration...'
         self.json_data = None
         self.init_json_data(args.config)
         self.project_path = get_str_repr(os.path.abspath(self.json_data["project_root_path"]))
@@ -194,17 +196,20 @@ class CommonConfig:
         verify_dir_exists(self.project_path)
 
     def init_json_data(self, config_file):
+        print 'Reading gdt configuration...'
         if config_file:
             self.json_data = json.load(open(os.path.abspath(config_file.name)))
         elif os.path.isfile(os.path.join(GDT_CONFIG_DIR, "config.json")):
             self.json_data = json.load(open(GDT_CONFIG_FILE))
         else:
+            print 'gdt configuration not found!'
             if not os.path.isdir(GDT_CONFIG_DIR):
                 os.makedirs(GDT_CONFIG_DIR)
                 generate_gdbinit()
             self.generate_config_file()
 
     def generate_config_file(self):
+        print 'Generating gdt configuration...'
         options = [ConfigOption('gdb_path', 'GDB path', 'is not a file.', lambda file_path: os.path.abspath(file_path) if os.path.isfile(file_path) else None),
                    ConfigOption('project_root_path', 'Project root path', 'is not a directory.', validate_dir),
                    ConfigOption('symbol_root_path', 'Symbol root path', ' is not a directory.', validate_dir),
@@ -218,6 +223,7 @@ class CommonConfig:
         with open(GDT_CONFIG_FILE, 'w') as config_file:
             json.dump(option_dict, config_file, sort_keys=True, indent=3)
         self.json_data = json.load(open(GDT_CONFIG_FILE, 'r'))
+        print 'Generated gdt configuration successfully!'
 
 
 class GeneratedConfig(CommonConfig):
