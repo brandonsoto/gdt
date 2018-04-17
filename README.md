@@ -21,9 +21,8 @@ You are able to customize certain parts of GDT. All configuration can be found i
 This file contains path and target configurations. The following can be customized:
 - **gdb_path** - full path to the GDB executable
 - **project_root_path** - path to the project's root directory
-- **symbol_root_paths** - list of paths to root symbol directories
+- **symbol_root_path** - path to root symbol directory
 - **excluded_dir_names** - names of directories to be excluded from solib path and source path generation (ex. .svn, .git, .vscode, etc.)
-- **output_dir** - path to directory for dsync's output
 - **target_ip** - the target's IPv4 address
 - **target_user** - the target's username
 - **target_password** - the target's password

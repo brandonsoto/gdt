@@ -11,6 +11,16 @@ import telnetlib
 
 GDT_DIR = os.path.dirname(os.path.abspath(__file__))
 GDT_CONFIG_DIR = os.path.join(GDT_DIR, 'gdt_files')
+GDT_CONFIG_FILE = os.path.join(GDT_CONFIG_DIR, 'config.json')
+GDB_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'commands.txt')
+GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'gdbinit')
+DEFAULT_IP = "192.168.33.42"
+DEFAULT_USER = "vagrant"
+DEFAULT_PASSWORD = "vagrant"
+DEFAULT_DEBUG_PORT = "8000"
+DEFAULT_PROMPT = "# "
+IPV4_REGEX = r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+PORT_REGEX = r"^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
 
 
 def get_str_repr(string):
@@ -30,6 +40,20 @@ def verify_file_exists(path):
     verify_path_exists(path, os.path.isfile)
 
 
+def validate_ipv4_address(ip):
+    ip_match = re.search(IPV4_REGEX, ip)
+    return ip_match.group() if ip_match else None
+
+
+def validate_port(port):
+    port_match = re.search(PORT_REGEX, port)
+    return port_match.group() if port_match else None
+
+
+def validate_dir(directory):
+    return os.path.abspath(directory) if os.path.isdir(directory) else None
+
+
 def generate_search_path(root_path, excluded_dir_names, unary_func, separator):
     search_path = []
     for root, dirs, files in os.walk(root_path, topdown=True):
@@ -37,6 +61,45 @@ def generate_search_path(root_path, excluded_dir_names, unary_func, separator):
         if any(unary_func(f) for f in files):
             search_path.insert(0, get_str_repr(os.path.abspath(root)))
     return separator.join(search_path)
+
+
+def generate_gdbinit():
+    with open(os.path.join(GDBINIT_FILE), 'w') as gdbinit:
+        gdbinit.write(r"""
+define print_qstring_static
+    set $d=$arg0.d
+    printf "(Qt5 QString)0x%x length=%i: \"",&$arg0,$d->size
+    set $i=0
+    set $ca=(const ushort*)(((const char*)$d)+$d->offset)
+    while $i < $d->size
+        set $c=$ca[$i++]
+        if $c < 32 || $c > 127
+            printf "\\u%04x", $c
+        else
+            printf "%c" , (char)$c
+        end
+    end
+    printf "\"\n"
+end
+
+define print_qstring_dynamic
+    set $d=(QStringData*)$arg0.d
+    printf "(Qt5 QString)0x%x length=%i: \"",&$arg0,$d->size
+    set $i=0
+    while $i < $d->size
+        set $c=$d->data()[$i++]
+        if $c < 32 || $c > 127
+            printf "\\u%04x", $c
+        else
+            printf "%c" , (char)$c
+        end
+    end
+    printf "\"\n"
+end
+
+set pagination off
+set auto-solib-add on
+""")
 
 
 def is_shared_library(path):
@@ -68,11 +131,11 @@ class Target:
         return self.ip + ":" + self.port
 
     def validate(self):
-        ip = re.search(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$", self.ip)
+        ip = validate_ipv4_address(self.ip)
         if not ip:
             raise Exception('invalid target IPv4 address - "' + self.ip + '"')
 
-        port = re.search(r"^\d+$", self.port)
+        port = validate_port(self.port)
         if not port:
             raise Exception('invalid target debug port - "' + self.port + '"')
 
@@ -83,10 +146,45 @@ class DebugOption:
         self.value = value
 
 
+class ConfigOption:
+    def __init__(self, key, desc="", error_str="", validate_func=None, default_value=None, is_raw_input=True, value=None):
+        self.key = key
+        self.default_value = default_value
+        self.value = value
+        self.desc = desc
+        self.validate_func = validate_func
+        self.error_str = error_str
+        self.is_raw_input = is_raw_input
+
+        self.init_desc()
+        self.init_value()
+
+    def init_desc(self):
+        if self.default_value:
+            self.desc = self.desc + ' [Default: "' + self.default_value + '"] -> '
+        else:
+            self.desc = self.desc + ' -> '
+
+    def init_value(self):
+        if self.is_raw_input:
+            self.value = raw_input(self.desc)
+            if self.value == "" and self.default_value:
+                self.value = self.default_value
+            elif self.validate_func:
+                value = self.validate_func(self.value)
+                while not value:
+                    print '"{}" {} Enter again...'.format(self.value, self.error_str)
+                    value = raw_input(self.desc)
+                    self.value = self.default_value if value == "" and self.default_value else value
+                    value = self.validate_func(self.value)
+                self.value = value
+
+
 class CommonConfig:
-    def __init__(self):
+    def __init__(self, args):
         print 'Reading configuration...'
-        self.json_data = json.load(open(os.path.join(GDT_CONFIG_DIR, 'config.json')))
+        self.json_data = None
+        self.init_json_data(args.config)
         self.project_path = get_str_repr(os.path.abspath(self.json_data["project_root_path"]))
         self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
         self.excluded_dir_names = self.json_data["excluded_dir_names"]
@@ -95,32 +193,54 @@ class CommonConfig:
         verify_file_exists(self.gdb_path)
         verify_dir_exists(self.project_path)
 
+    def init_json_data(self, config_file):
+        if config_file:
+            self.json_data = json.load(open(os.path.abspath(config_file.name)))
+        elif os.path.isfile(os.path.join(GDT_CONFIG_DIR, "config.json")):
+            self.json_data = json.load(open(GDT_CONFIG_FILE))
+        else:
+            if not os.path.isdir(GDT_CONFIG_DIR):
+                os.makedirs(GDT_CONFIG_DIR)
+                generate_gdbinit()
+            self.generate_config_file()
+
+    def generate_config_file(self):
+        options = [ConfigOption('gdb_path', 'GDB path', 'is not a file.', lambda file_path: os.path.abspath(file_path) if os.path.isfile(file_path) else None),
+                   ConfigOption('project_root_path', 'Project root path', 'is not a directory.', validate_dir),
+                   ConfigOption('symbol_root_path', 'Symbol root path', ' is not a directory.', validate_dir),
+                   ConfigOption('target_ip', 'Remote target IP', 'is an invalid IPv4 address.', validate_ipv4_address, DEFAULT_IP),
+                   ConfigOption('excluded_dir_names', is_raw_input=False, value=['.svn', '.git']),
+                   ConfigOption('target_user', 'Remote target username', default_value=DEFAULT_USER),
+                   ConfigOption('target_password', 'Remote target password', default_value=DEFAULT_PASSWORD),
+                   ConfigOption('target_debug_port', 'Remote target debug port', "is an invalid port.", validate_port, DEFAULT_DEBUG_PORT),
+                   ConfigOption('target_prompt', 'Remote target prompt', default_value=DEFAULT_PROMPT)]
+        option_dict = {option.key: option.value for option in options}
+        with open(GDT_CONFIG_FILE, 'w') as config_file:
+            json.dump(option_dict, config_file, sort_keys=True, indent=3)
+        self.json_data = json.load(open(GDT_CONFIG_FILE, 'r'))
+
 
 class GeneratedConfig(CommonConfig):
     def __init__(self, args):
-        CommonConfig.__init__(self)
-        self.output_dir = os.path.abspath(self.json_data["output_dir"])
-        self.command_file = os.path.join(self.output_dir, "gdb_commands.txt")
-        self.symbol_root_paths = args.symbols if args.symbols else self.json_data["symbol_root_paths"]
+        CommonConfig.__init__(self, args)
+        self.command_file = GDB_COMMANDS_FILE
+        self.symbol_root_path = args.symbols if args.symbols else self.json_data["symbol_root_path"]
         self.source_separator = ";"
         self.opts = OrderedDict([("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name))))])
         self.program_name = extract_program_name(self.opts['program'].value)
-        for dir_path in self.symbol_root_paths + [self.output_dir]:
-            verify_dir_exists(dir_path)
+        verify_dir_exists(self.symbol_root_path)
 
     def init_search_paths(self):
         print "Generating search paths..."
-        solib_search_paths = [generate_search_path(path, self.excluded_dir_names, is_shared_library, self.solib_separator) for path in self.symbol_root_paths]
-        self.add_option('solib_path', DebugOption('set solib-search-path', self.solib_separator.join(path for path in solib_search_paths)))
+        self.add_option('solib_path', DebugOption('set solib-search-path', generate_search_path(self.symbol_root_path, self.excluded_dir_names, is_shared_library, self.solib_separator)))
         self.add_option('source_path', DebugOption('dir', generate_search_path(self.project_path, self.excluded_dir_names, is_cpp_file, self.source_separator)))
         print "Generated search paths successfully!"
 
     def create_command_file(self):
         print "Generating command file..."
-        gdbinit = os.path.join(GDT_CONFIG_DIR, 'gdbinit')
         with open(self.command_file, 'w') as cmd_file:
-            if os.path.isfile(gdbinit):
-                cmd_file.write(open(gdbinit, 'r').read())
+            if os.path.isfile(GDBINIT_FILE):
+                cmd_file.write(open(GDBINIT_FILE, 'r').read())
             for key, option in self.opts.iteritems():
                 cmd_file.write("\n" + option.prefix + " " + option.value)
         print 'Generated command file successfully! (' + cmd_file.name + ')'
@@ -160,20 +280,17 @@ class RemoteConfig(GeneratedConfig):
 
     def init_pid(self):
         print 'Getting pid of ' + self.program_name + '...'
-
         output = self.telnet.get_pid_of(self.program_name)
         match = re.search(r'\d+ .*' + self.program_name, output)
         pid = match.group().split()[0] if match else None
-
         if pid:
             self.add_option('pid', DebugOption('attach', pid))
-
         print 'pid of ' + self.program_name + ' = ' + str(pid)
 
 
 class CommandConfig(CommonConfig):
     def __init__(self, args):
-        CommonConfig.__init__(self)
+        CommonConfig.__init__(self, args)
         self.command_file = args.input.name
 
 
@@ -254,9 +371,12 @@ def parse_args():
     parser = argparse.ArgumentParser(description='GDB Developer Tool: developer script to quickly and easily debug a remote target or core file.')
     subparsers = parser.add_subparsers()
 
-    common_parser = argparse.ArgumentParser(add_help=False)
+    root_parser = argparse.ArgumentParser(add_help=False)
+    root_parser.add_argument('-cfg', '--config', type=argparse.FileType(), help='Absolute or relative path to gdt\'s config file')
+
+    common_parser = argparse.ArgumentParser(add_help=False, parents=[root_parser])
     common_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
-    common_parser.add_argument('-s', '--symbols', type=str, nargs="+", help='List of absolute or relative paths to root symbol directories (symbol_root_paths in config.json will be ignored)')
+    common_parser.add_argument('-s', '--symbols', type=str, help='Absolute or relative path to root symbols directory (symbol_root_path in config.json will be ignored)')
 
     core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[common_parser])
     core_parser.add_argument('-c', '--core', required=True, type=argparse.FileType(), help='Absolute or relative path to core file')
@@ -267,7 +387,7 @@ def parse_args():
     remote_parser.add_argument('-ot', '--other-target', action='store_true', default=False, help="Use when the remote target is run on a non-QNX OS")
     remote_parser.set_defaults(func=lambda args: RemoteConfig(args))
 
-    cmd_parser = subparsers.add_parser('cmd', help='Use to run gdb with a command file')
+    cmd_parser = subparsers.add_parser('cmd', help='Use to run gdb with a command file', parents=[root_parser])
     cmd_parser.add_argument('input', type=argparse.FileType(), help='Absolute or relative path to command file')
     cmd_parser.set_defaults(func=lambda args: CommandConfig(args))
 
