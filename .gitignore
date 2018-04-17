@@ -1,4 +1,6 @@
-gdt_files/
+gdt_files/commands.txt
+gdt_files/gdbinit
+gdt_files/config.json
 
 Project/
 .vscode/

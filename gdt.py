@@ -64,42 +64,9 @@ def generate_search_path(root_path, excluded_dir_names, unary_func, separator):
 
 
 def generate_gdbinit():
-    with open(os.path.join(GDBINIT_FILE), 'w') as gdbinit:
-        gdbinit.write(r"""
-define print_qstring_static
-    set $d=$arg0.d
-    printf "(Qt5 QString)0x%x length=%i: \"",&$arg0,$d->size
-    set $i=0
-    set $ca=(const ushort*)(((const char*)$d)+$d->offset)
-    while $i < $d->size
-        set $c=$ca[$i++]
-        if $c < 32 || $c > 127
-            printf "\\u%04x", $c
-        else
-            printf "%c" , (char)$c
-        end
-    end
-    printf "\"\n"
-end
-
-define print_qstring_dynamic
-    set $d=(QStringData*)$arg0.d
-    printf "(Qt5 QString)0x%x length=%i: \"",&$arg0,$d->size
-    set $i=0
-    while $i < $d->size
-        set $c=$d->data()[$i++]
-        if $c < 32 || $c > 127
-            printf "\\u%04x", $c
-        else
-            printf "%c" , (char)$c
-        end
-    end
-    printf "\"\n"
-end
-
-set pagination off
-set auto-solib-add on
-""")
+    if not os.path.isfile(GDBINIT_FILE):
+        with open(GDBINIT_FILE, 'w') as gdbinit:
+            gdbinit.write(open(os.path.join(GDT_CONFIG_DIR, 'default_gdbinit'), 'r').read())
 
 
 def is_shared_library(path):
@@ -185,6 +152,7 @@ class ConfigOption:
 
 class CommonConfig:
     def __init__(self, args):
+        generate_gdbinit()
         self.json_data = None
         self.init_json_data(args.config)
         self.project_path = get_str_repr(os.path.abspath(self.json_data["project_root_path"]))
@@ -205,7 +173,6 @@ class CommonConfig:
             print 'gdt configuration not found!'
             if not os.path.isdir(GDT_CONFIG_DIR):
                 os.makedirs(GDT_CONFIG_DIR)
-                generate_gdbinit()
             self.generate_config_file()
 
     def generate_config_file(self):
