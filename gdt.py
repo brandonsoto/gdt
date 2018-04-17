@@ -167,7 +167,7 @@ class CommonConfig:
         print 'Reading gdt configuration...'
         if config_file:
             self.json_data = json.load(open(os.path.abspath(config_file.name)))
-        elif os.path.isfile(os.path.join(GDT_CONFIG_DIR, "config.json")):
+        elif os.path.isfile(GDT_CONFIG_FILE):
             self.json_data = json.load(open(GDT_CONFIG_FILE))
         else:
             print 'gdt configuration not found!'
