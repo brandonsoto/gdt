@@ -380,15 +380,15 @@ def parse_args():
     root_parser = argparse.ArgumentParser(add_help=False)
     root_parser.add_argument('-cfg', '--config', type=argparse.FileType(), help='Absolute or relative path to gdt\'s config file')
 
-    common_parser = argparse.ArgumentParser(add_help=False, parents=[root_parser])
-    common_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
-    common_parser.add_argument('-s', '--symbols', type=str, help='Absolute or relative path to root symbols directory (symbol_root_path in config.json will be ignored)')
+    generated_parser = argparse.ArgumentParser(add_help=False, parents=[root_parser])
+    generated_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
+    generated_parser.add_argument('-s', '--symbols', type=str, help='Absolute or relative path to root symbols directory (symbol_root_path in config.json will be ignored)')
 
-    core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[common_parser])
+    core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[generated_parser])
     core_parser.add_argument('-c', '--core', required=True, type=argparse.FileType(), help='Absolute or relative path to core file')
     core_parser.set_defaults(func=lambda args: CoreConfig(args))
 
-    remote_parser = subparsers.add_parser('remote', help='Use when debugging a remote program', parents=[common_parser])
+    remote_parser = subparsers.add_parser('remote', help='Use when debugging a remote program', parents=[generated_parser])
     remote_parser.add_argument('-b', '--breakpoints', type=argparse.FileType(), help='Absolute or relative path to breakpoint file')
     remote_parser.add_argument('-ot', '--other-target', action='store_true', default=False, help="Use when the remote target is run on a non-QNX OS")
     remote_parser.set_defaults(func=lambda args: RemoteConfig(args))
