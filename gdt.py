@@ -242,7 +242,7 @@ class GeneratedConfig(CommonConfig):
         self.add_option('source_path', DebugOption('dir', generate_search_path(self.project_path, self.excluded_dir_names, is_cpp_file, self.source_separator)))
         print "Generated search paths successfully!"
 
-    def create_command_file(self):
+    def generate_command_file(self):
         print "Generating command file..."
         with open(self.command_file, 'w') as cmd_file:
             if os.path.isfile(GDBINIT_FILE):
@@ -260,7 +260,7 @@ class CoreConfig(GeneratedConfig):
         GeneratedConfig.__init__(self, args)
         self.init_search_paths()
         self.add_option('core', DebugOption('core-file', get_str_repr(os.path.abspath(args.core.name))))
-        self.create_command_file()
+        self.generate_command_file()
 
 
 class RemoteConfig(GeneratedConfig):
@@ -274,7 +274,7 @@ class RemoteConfig(GeneratedConfig):
         self.init_search_paths()
         self.init_breakpoints(args.breakpoints)
         self.init_target()
-        self.create_command_file()
+        self.generate_command_file()
 
     def init_breakpoints(self, breakpoint_file):
         if breakpoint_file:
