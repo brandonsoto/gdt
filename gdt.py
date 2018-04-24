@@ -14,6 +14,7 @@ GDT_CONFIG_DIR = os.path.join(GDT_DIR, 'gdt_files')
 GDT_CONFIG_FILE = os.path.join(GDT_CONFIG_DIR, 'config.json')
 GDB_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'commands.txt')
 GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'gdbinit')
+DEFAULT_GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'default_gdbinit')
 DEFAULT_IP = "192.168.33.42"
 DEFAULT_USER = "vagrant"
 DEFAULT_PASSWORD = "vagrant"
@@ -61,12 +62,6 @@ def generate_search_path(root_path, excluded_dir_names, unary_func, separator):
         if any(unary_func(f) for f in files):
             search_path.insert(0, get_str_repr(os.path.abspath(root)))
     return separator.join(search_path)
-
-
-def generate_gdbinit():
-    if not os.path.isfile(GDBINIT_FILE):
-        with open(GDBINIT_FILE, 'w') as gdbinit:
-            gdbinit.write(open(os.path.join(GDT_CONFIG_DIR, 'default_gdbinit'), 'r').read())
 
 
 def is_shared_library(path):
@@ -134,7 +129,7 @@ class ConfigOption:
 
     def init_value(self):
         if self.is_raw_input:
-            self.value = raw_input(self.desc)
+            self.value = raw_input(self.desc).strip('"\'')
             if self.value == "" and self.default_value:
                 self.value = self.default_value
             elif self.validate_func:
@@ -144,15 +139,16 @@ class ConfigOption:
         value = self.validate_func(self.value)
         while not value:
             print '"{}" {} Enter again...'.format(self.value, self.error_str)
-            value = raw_input(self.desc)
-            value = self.default_value if value == "" and self.default_value else value
+            value = raw_input(self.desc).strip('"\'')
+            value = self.default_value if (value == "" and self.default_value) else value
             value = self.validate_func(value)
         self.value = value
 
 
 class CommonConfig:
     def __init__(self, args):
-        generate_gdbinit()
+        self.generate_config_dir()
+        self.generate_gdbinit()
         self.json_data = None
         self.init_json_data(args.config)
         self.project_path = get_str_repr(os.path.abspath(self.json_data["project_root_path"]))
@@ -171,9 +167,17 @@ class CommonConfig:
             self.json_data = json.load(open(GDT_CONFIG_FILE))
         else:
             print 'gdt configuration not found!'
-            if not os.path.isdir(GDT_CONFIG_DIR):
-                os.makedirs(GDT_CONFIG_DIR)
             self.generate_config_file()
+
+    def generate_config_dir(self):
+        if not os.path.isdir(GDT_CONFIG_DIR):
+            os.makedirs(GDT_CONFIG_DIR)
+
+    def generate_gdbinit(self):
+        if not os.path.isfile(GDBINIT_FILE):
+            with open(GDBINIT_FILE, 'w') as gdbinit:
+                gdbinit.write(open(DEFAULT_GDBINIT_FILE, 'r').read())
+                print 'Generated gdbinit successfully! (' + GDBINIT_FILE + ")"
 
     def generate_config_file(self):
         print 'Generating gdt configuration...'
@@ -181,7 +185,7 @@ class CommonConfig:
                    ConfigOption('project_root_path', 'Project root path', 'is not a directory.', validate_dir),
                    ConfigOption('symbol_root_path', 'Symbol root path', ' is not a directory.', validate_dir),
                    ConfigOption('target_ip', 'Remote target IP', 'is an invalid IPv4 address.', validate_ipv4_address, DEFAULT_IP),
-                   ConfigOption('excluded_dir_names', is_raw_input=False, value=['.svn', '.git']),
+                   ConfigOption('excluded_dir_names', is_raw_input=False, value=[".svn", ".git"]),
                    ConfigOption('target_user', 'Remote target username', default_value=DEFAULT_USER),
                    ConfigOption('target_password', 'Remote target password', default_value=DEFAULT_PASSWORD),
                    ConfigOption('target_debug_port', 'Remote target debug port', "is an invalid port.", validate_port, DEFAULT_DEBUG_PORT),
@@ -190,7 +194,7 @@ class CommonConfig:
         with open(GDT_CONFIG_FILE, 'w') as config_file:
             json.dump(option_dict, config_file, sort_keys=True, indent=3)
         self.json_data = json.load(open(GDT_CONFIG_FILE, 'r'))
-        print 'Generated gdt configuration successfully!'
+        print 'Generated gdt configuration successfully! (' + GDT_CONFIG_FILE + ')'
 
 
 class GeneratedConfig(CommonConfig):
@@ -239,8 +243,8 @@ class RemoteConfig(GeneratedConfig):
         self.telnet = TelnetConnection(self.target, self.json_data["target_prompt"])
 
         self.init_search_paths()
-        self.init_breakpoints(args.breakpoints)
         self.init_target()
+        self.init_breakpoints(args.breakpoints)
         self.generate_command_file()
 
     def init_breakpoints(self, breakpoint_file):
@@ -328,7 +332,7 @@ def run_gdb(gdb_path, command_file):
             except KeyboardInterrupt:
                 continue  # ignore interrupt to allow GDB child process to handle it
     except OSError as error:
-        print "GDT encountered an error: " + error.message
+        print "gdt encountered an error: " + error.message
     finally:
         if process is not None and returncode is None:
             process.kill()
@@ -373,7 +377,7 @@ def main():
     args = parse_args()
     config = args.func(args)
     run_gdb(config.gdb_path, config.command_file)
-    print 'GDT Session ended'
+    print 'gdt session ended'
 
 
 if __name__ == '__main__':
