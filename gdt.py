@@ -22,6 +22,7 @@ DEFAULT_DEBUG_PORT = "8000"
 DEFAULT_PROMPT = "# "
 IPV4_REGEX = r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
 PORT_REGEX = r"^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
+SHARED_LIB_REGEX = r'so(\.\d)?$'
 
 
 def get_str_repr(string):
@@ -56,11 +57,7 @@ def validate_dir(directory):
 
 
 def is_shared_library(path):
-    file_extension = ".so"
-    lib_number = re.search(r'\d+$', path)
-    if lib_number:
-        file_extension += "." + lib_number.group()
-    return path.endswith(file_extension)
+    return re.search(SHARED_LIB_REGEX, path) is not None
 
 
 def extract_program_name(program_path):
