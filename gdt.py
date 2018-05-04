@@ -55,25 +55,12 @@ def validate_dir(directory):
     return os.path.abspath(directory) if os.path.isdir(directory) else None
 
 
-def generate_search_path(root_path, excluded_dir_names, unary_func, separator):
-    search_path = []
-    for root, dirs, files in os.walk(root_path, topdown=True):
-        dirs[:] = [d for d in dirs if d not in excluded_dir_names]
-        if any(unary_func(f) for f in files):
-            search_path.insert(0, get_str_repr(os.path.abspath(root)))
-    return separator.join(search_path)
-
-
 def is_shared_library(path):
     file_extension = ".so"
     lib_number = re.search(r'\d+$', path)
     if lib_number:
         file_extension += "." + lib_number.group()
     return path.endswith(file_extension)
-
-
-def is_cpp_file(path):
-    return any(path.endswith(extension) for extension in [".cpp", ".c", ".cc", ".h", ".hpp"])
 
 
 def extract_program_name(program_path):
@@ -209,9 +196,27 @@ class GeneratedConfig(CommonConfig):
 
     def init_search_paths(self):
         print "Generating search paths..."
-        self.add_option('solib_path', DebugOption('set solib-search-path', generate_search_path(self.symbol_root_path, self.excluded_dir_names, is_shared_library, self.solib_separator)))
-        self.add_option('source_path', DebugOption('dir', generate_search_path(self.project_path, self.excluded_dir_names, is_cpp_file, self.source_separator)))
+        self.add_option('solib_path', DebugOption('set solib-search-path', self.generate_solib_search_path()))
+        self.add_option('source_path', DebugOption('dir', self.generate_source_search_path()))
         print "Generated search paths successfully!"
+
+    def generate_solib_search_path(self):
+        search_path = []
+        for root, dirs, files in os.walk(self.project_path, topdown=True):
+            dirs[:] = [d for d in dirs if d not in self.excluded_dir_names]
+            if any(is_shared_library(f) for f in files):
+                search_path.insert(0, get_str_repr(os.path.abspath(root)))
+        return self.solib_separator.join(search_path)
+
+    def generate_source_search_path(self):
+        search_path = []
+        for root, dirs, files in os.walk(self.project_path, topdown=True):
+            dirs[:] = [d for d in dirs if d not in self.excluded_dir_names]
+            if self.program_name in root:
+                search_path.insert(0, get_str_repr(os.path.abspath(root)))
+            else:
+                search_path.append(get_str_repr(os.path.abspath(root)))
+        return self.source_separator.join(search_path)
 
     def generate_command_file(self):
         print "Generating command file..."
