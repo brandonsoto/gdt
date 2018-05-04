@@ -59,6 +59,9 @@ def validate_dir(directory):
 def is_shared_library(path):
     return re.search(SHARED_LIB_REGEX, path) is not None
 
+def is_cpp_file(path):
+    return any(path.endswith(extension) for extension in (".cpp", ".c", ".cc", ".h", ".hpp"))
+
 
 def extract_program_name(program_path):
     filename = os.path.split(program_path)[1]
@@ -209,9 +212,10 @@ class GeneratedConfig(CommonConfig):
         search_path = []
         for root, dirs, files in os.walk(self.project_path, topdown=True):
             dirs[:] = [d for d in dirs if d not in self.excluded_dir_names]
-            if self.program_name in root:
+            has_cpp_file = any(is_cpp_file(f) for f in files)
+            if has_cpp_file and self.program_name in root:
                 search_path.insert(0, get_str_repr(os.path.abspath(root)))
-            else:
+            elif has_cpp_file:
                 search_path.append(get_str_repr(os.path.abspath(root)))
         return self.source_separator.join(search_path)
 
