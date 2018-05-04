@@ -22,7 +22,7 @@ DEFAULT_DEBUG_PORT = "8000"
 DEFAULT_PROMPT = "# "
 IPV4_REGEX = r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
 PORT_REGEX = r"^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
-SHARED_LIB_REGEX = r'so(\.\d)?$'
+SHARED_LIB_REGEX = r'so(\.\d+)?$'
 
 
 def get_str_repr(string):
