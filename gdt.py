@@ -22,10 +22,10 @@ DEFAULT_PASSWORD = "vagrant"
 DEFAULT_DEBUG_PORT = "8000"
 DEFAULT_PROMPT = "# "
 
-IPV4_REGEX = r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
-PORT_REGEX = r"^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$"
-SHARED_LIB_REGEX = r'\.so(\.\d+)?$'
-CPP_REGEX = r'\.h$|\.hpp$|\.c$|\.cc$|\.cpp$'
+IPV4_REGEX = re.compile(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
+PORT_REGEX = re.compile(r"^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$")
+SHARED_LIB_REGEX = re.compile(r'\.so(\.\d+)?$')
+CPP_REGEX = re.compile(r'\.h$|\.hpp$|\.c$|\.cc$|\.cpp$')
 
 
 def get_str_repr(string):
