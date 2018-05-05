@@ -136,7 +136,7 @@ class ConfigOption:
         self.value = value
 
 
-class CommonConfig:
+class BaseConfig:
     def __init__(self, args):
         self.generate_config_dir()
         self.generate_gdbinit()
@@ -188,9 +188,9 @@ class CommonConfig:
         print 'Generated gdt configuration successfully! (' + GDT_CONFIG_FILE + ')'
 
 
-class GeneratedConfig(CommonConfig):
+class GeneratedConfig(BaseConfig):
     def __init__(self, args):
-        CommonConfig.__init__(self, args)
+        BaseConfig.__init__(self, args)
         self.command_file = GDB_COMMANDS_FILE
         self.symbol_root_path = args.symbols if args.symbols else self.json_data["symbol_root_path"]
         self.source_separator = ";"
@@ -275,9 +275,9 @@ class RemoteConfig(GeneratedConfig):
         print 'pid of ' + self.program_name + ' = ' + str(pid)
 
 
-class CommandConfig(CommonConfig):
+class CommandConfig(BaseConfig):
     def __init__(self, args):
-        CommonConfig.__init__(self, args)
+        BaseConfig.__init__(self, args)
         self.command_file = args.input.name
 
 
@@ -358,10 +358,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description='GDB Developer Tool: developer script to quickly and easily debug a remote target or core file.')
     subparsers = parser.add_subparsers()
 
-    root_parser = argparse.ArgumentParser(add_help=False)
-    root_parser.add_argument('-cfg', '--config', type=argparse.FileType(), help='Absolute or relative path to gdt\'s config file')
+    base_parser = argparse.ArgumentParser(add_help=False)
+    base_parser.add_argument('-cfg', '--config', type=argparse.FileType(), help='Absolute or relative path to gdt\'s config file')
 
-    generated_parser = argparse.ArgumentParser(add_help=False, parents=[root_parser])
+    generated_parser = argparse.ArgumentParser(add_help=False, parents=[base_parser])
     generated_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
     generated_parser.add_argument('-s', '--symbols', type=str, help='Absolute or relative path to root symbols directory (symbol_root_path in config.json will be ignored)')
 
@@ -374,7 +374,7 @@ def parse_args():
     remote_parser.add_argument('-ot', '--other-target', action='store_true', default=False, help="Use when the remote target is run on a non-QNX OS")
     remote_parser.set_defaults(func=lambda args: RemoteConfig(args))
 
-    cmd_parser = subparsers.add_parser('cmd', help='Use to run gdb with a command file', parents=[root_parser])
+    cmd_parser = subparsers.add_parser('cmd', help='Use to run gdb with a command file', parents=[base_parser])
     cmd_parser.add_argument('input', type=argparse.FileType(), help='Absolute or relative path to command file')
     cmd_parser.set_defaults(func=lambda args: CommandConfig(args))
 
