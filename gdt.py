@@ -206,7 +206,7 @@ class GeneratedConfig(BaseConfig):
 
     def generate_solib_search_path(self):
         search_path = []
-        for root, dirs, files in os.walk(self.project_path, topdown=True):
+        for root, dirs, files in os.walk(self.symbol_root_path, topdown=True):
             dirs[:] = [d for d in dirs if d not in self.excluded_dir_names]
             if any(is_shared_library(f) for f in files):
                 search_path.insert(0, get_str_repr(os.path.abspath(root)))
