@@ -142,13 +142,10 @@ class BaseConfig:
         self.generate_gdbinit()
         self.json_data = None
         self.init_json_data(args.config)
-        self.project_path = get_str_repr(os.path.abspath(self.json_data["project_root_path"]))
         self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
         self.excluded_dir_names = self.json_data["excluded_dir_names"]
         self.solib_separator = ";"
-
         verify_file_exists(self.gdb_path)
-        verify_dir_exists(self.project_path)
 
     def init_json_data(self, config_file):
         print 'Reading gdt configuration...'
@@ -192,10 +189,12 @@ class GeneratedConfig(BaseConfig):
     def __init__(self, args):
         BaseConfig.__init__(self, args)
         self.command_file = GDB_COMMANDS_FILE
+        self.project_path = args.root if args.root else get_str_repr(os.path.abspath(self.json_data["project_root_path"]))
         self.symbol_root_path = args.symbols if args.symbols else self.json_data["symbol_root_path"]
         self.source_separator = ";"
         self.opts = OrderedDict([("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name))))])
         self.program_name = extract_program_name(self.opts['program'].value)
+        verify_dir_exists(self.project_path)
         verify_dir_exists(self.symbol_root_path)
 
     def init_search_paths(self):
@@ -363,6 +362,7 @@ def parse_args():
 
     generated_parser = argparse.ArgumentParser(add_help=False, parents=[base_parser])
     generated_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
+    generated_parser.add_argument('-r', '--root', type=str, help='Absolute or relative path to root project directory (project_root_path in config.json will be ignored)')
     generated_parser.add_argument('-s', '--symbols', type=str, help='Absolute or relative path to root symbols directory (symbol_root_path in config.json will be ignored)')
 
     core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[generated_parser])
