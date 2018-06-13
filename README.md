@@ -2,7 +2,7 @@
 
 <a href="https://codeclimate.com/github/brandonsoto/gdt/maintainability"><img src="https://api.codeclimate.com/v1/badges/c203adcc92be588cf10d/maintainability" /></a>
 
-GDB Developer Tool (GDT) is a developer script to quickly and easily debug a core file or remote target. It's essentially a wrapper around GDB that can automatically attach to a remote process and generate GDB's "solib-search-path" and "dir" options for you.
+GDB Developer Tool (GDT) is a developer script to quickly and easily debug a core file or remote QNX target. It's essentially a wrapper around GDB that can automatically attach to a remote process and generate GDB's "solib-search-path" and "dir" options for you.
 
 ## Features include
 
