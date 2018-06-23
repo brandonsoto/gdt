@@ -47,6 +47,7 @@ def verify_dir_exists(path):
 def verify_file_exists(path):
     verify_path_exists(path, os.path.isfile)
 
+
 def verify_required_files_exist():
     if not os.path.isdir(GDT_CONFIG_DIR):
         raise RequiredFileMissing("configuration directory: " + GDT_CONFIG_DIR)
@@ -82,6 +83,7 @@ def extract_filename(filepath):
     filename = os.path.split(filepath)[1]
     return os.path.splitext(filename)[0]
 
+
 class RequiredFileMissing(IOError):
     def __init__(self, value):
         self.value = value
@@ -100,7 +102,7 @@ class InvalidConfig(Exception):
 
 
 class TelnetError(Exception):
-    def __init__(self, name, value):
+    def __init__(self, value):
         self.value = value
 
     def __str__(self):
@@ -186,10 +188,10 @@ class ConfigGenerator:
         option_dict = {option.key: option.value for option in options}
         with open(GDT_CONFIG_FILE, 'w') as config_file:
             json.dump(option_dict, config_file, sort_keys=True, indent=3)
-        self.json_data = json.load(open(GDT_CONFIG_FILE, 'r'))
         print '\nCreated gdt configuration: ' + GDT_CONFIG_FILE
 
-class BaseConfig:
+
+class BaseCommand:
     def __init__(self, args):
         verify_required_files_exist()
         self.check_config_exists(args.config)
@@ -206,7 +208,6 @@ class BaseConfig:
         if not os.path.isfile(config_file):
             raise IOError("ERROR: config file does not exist: " + config_file + "\nPlease ensure the file exists or create a new config by running 'python gdt.py init'")
         print "Using config file: " + config_file
-
 
     def validate_config_file(self):
         if not os.path.isfile(self.json_data["gdb_path"]):
@@ -225,9 +226,9 @@ class BaseConfig:
             gdbinit.write(open(DEFAULT_GDBINIT_FILE, 'r').read())
 
 
-class GeneratedConfig(BaseConfig):
+class GeneratedCommand(BaseCommand):
     def __init__(self, args):
-        BaseConfig.__init__(self, args)
+        BaseCommand.__init__(self, args)
         self.command_file = DEFAULT_COMMANDS_FILE
         self.project_path = args.root if args.root else get_str_repr(os.path.abspath(self.json_data["project_root_path"]))
         self.symbol_root_path = args.symbols if args.symbols else self.json_data["symbol_root_path"]
@@ -264,36 +265,41 @@ class GeneratedConfig(BaseConfig):
             cmd_file.write(open(GDBINIT_FILE, 'r').read())
             for key, option in self.opts.iteritems():
                 cmd_file.write("\n" + str(option))
-        print 'command file: ' + cmd_file.name
 
     def add_option(self, key, option):
         self.opts[key] = option
 
 
-class CoreConfig(GeneratedConfig):
+class CoreCommand(GeneratedCommand):
     def __init__(self, args):
-        GeneratedConfig.__init__(self, args)
+        self.validate_args(args)
+        GeneratedCommand.__init__(self, args)
         self.init_search_paths()
         self.add_option('core', GDBCommand('core-file', get_str_repr(os.path.abspath(args.core.name))))
+        self.report_file = args.report_out
         self.generate_command_file(args.report)
 
+    def validate_args(self, args):
+        if not args.report and args.report_out != CORE_REPORT_FILE:
+            raise Exception("ERROR: Need to specify --report when using --report-out")
+
     def generate_command_file(self, create_report):
-        GeneratedConfig.generate_command_file(self)
+        GeneratedCommand.generate_command_file(self)
         if create_report:
             old_contents = open(self.command_file, 'r').read()
             with open(self.command_file, 'w') as cmd_file:
                 cmd_file.write('set logging overwrite on\n')
-                cmd_file.write('set logging file ' + CORE_REPORT_FILE + '\n')
+                cmd_file.write('set logging file ' + self.report_file + '\n')
                 cmd_file.write('set logging on\n')
                 cmd_file.write('set logging redirect on\n')
                 cmd_file.write(old_contents + '\n')
                 cmd_file.write(open(CORE_COMMANDS_FILE, 'r').read())
-                print "core dump report: " + CORE_REPORT_FILE
+                print "core dump report: " + self.report_file
 
 
-class RemoteConfig(GeneratedConfig):
+class RemoteCommand(GeneratedCommand):
     def __init__(self, args):
-        GeneratedConfig.__init__(self, args)
+        GeneratedCommand.__init__(self, args)
         self.is_qnx_target = not args.other_target
         self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"])
         self.source_separator = ";" if self.is_qnx_target else ":"
@@ -322,9 +328,9 @@ class RemoteConfig(GeneratedConfig):
         print 'pid of ' + self.program_name + ' = ' + str(pid)
 
 
-class CommandConfig(BaseConfig):
+class CmdFileCommand(BaseCommand):
     def __init__(self, args):
-        BaseConfig.__init__(self, args)
+        BaseCommand.__init__(self, args)
         self.command_file = args.input.name
 
 
@@ -416,16 +422,17 @@ def parse_args():
     core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[generated_parser])
     core_parser.add_argument('-c', '--core', required=True, type=argparse.FileType(), help='Absolute or relative path to core file')
     core_parser.add_argument('-rp', '--report', action='store_true', help='Generate a core dump report')
-    core_parser.set_defaults(func=lambda args: CoreConfig(args))
+    core_parser.add_argument('--report-out', type=str, default=CORE_REPORT_FILE, help='Output file for core dump report (requires -rp option)')
+    core_parser.set_defaults(func=lambda args: CoreCommand(args))
 
     remote_parser = subparsers.add_parser('remote', help='Use when debugging a remote program', parents=[generated_parser])
     remote_parser.add_argument('-b', '--breakpoints', type=argparse.FileType(), help='Absolute or relative path to breakpoint file')
     remote_parser.add_argument('-ot', '--other-target', action='store_true', default=False, help="Use when the remote target is run on a non-QNX OS")
-    remote_parser.set_defaults(func=lambda args: RemoteConfig(args))
+    remote_parser.set_defaults(func=lambda args: RemoteCommand(args))
 
     cmd_parser = subparsers.add_parser('cmd', help='Use to run gdb with a command file', parents=[base_parser])
     cmd_parser.add_argument('input', type=argparse.FileType(), help='Absolute or relative path to command file')
-    cmd_parser.set_defaults(func=lambda args: CommandConfig(args))
+    cmd_parser.set_defaults(func=lambda args: CmdFileCommand(args))
 
     init_parser = subparsers.add_parser('init', help='Use to initialize config.json')
     init_parser.set_defaults(func=lambda args: ConfigGenerator(args))
@@ -443,7 +450,7 @@ def main():
             run_gdb(config.gdb_path, config.command_file)
     except KeyboardInterrupt:
         pass
-    except (InvalidConfig, RequiredFileMissing, TelnetError, IOError) as err:
+    except (InvalidConfig, RequiredFileMissing, TelnetError, IOError, Exception) as err:
         print err
 
 
