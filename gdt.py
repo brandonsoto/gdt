@@ -16,7 +16,7 @@ GDB_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'commands.txt')
 GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'gdbinit')
 DEFAULT_GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'default_gdbinit')
 CORE_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'core_report_commands')
-CORE_REPORT_FILE = os.path.join(GDT_CONFIG_DIR, 'core_report.log')
+CORE_REPORT_FILE = os.path.join(GDT_CONFIG_DIR, 'coredump_report.log')
 
 DEFAULT_IP = "192.168.33.42"
 DEFAULT_USER = "vagrant"
@@ -167,7 +167,7 @@ class BaseConfig:
         if not os.path.isfile(GDBINIT_FILE):
             with open(GDBINIT_FILE, 'w') as gdbinit:
                 gdbinit.write(open(DEFAULT_GDBINIT_FILE, 'r').read())
-                print 'Generated gdbinit successfully! (' + GDBINIT_FILE + ")"
+                print 'Generated gdbinit -> ' + GDBINIT_FILE
 
     def generate_config_file(self):
         print 'Generating gdt configuration...'
@@ -184,7 +184,7 @@ class BaseConfig:
         with open(GDT_CONFIG_FILE, 'w') as config_file:
             json.dump(option_dict, config_file, sort_keys=True, indent=3)
         self.json_data = json.load(open(GDT_CONFIG_FILE, 'r'))
-        print 'Generated gdt configuration successfully! (' + GDT_CONFIG_FILE + ')'
+        print '\tGenerated gdt configuration -> ' + GDT_CONFIG_FILE
 
 
 class GeneratedConfig(BaseConfig):
@@ -203,7 +203,7 @@ class GeneratedConfig(BaseConfig):
         print "Generating search paths..."
         self.add_option('solib_path', DebugOption('set solib-search-path', self.generate_solib_search_path()))
         self.add_option('source_path', DebugOption('dir', self.generate_source_search_path()))
-        print "Generated search paths successfully!"
+        print "Done generating paths"
 
     def generate_solib_search_path(self):
         search_path = []
@@ -231,7 +231,7 @@ class GeneratedConfig(BaseConfig):
                 cmd_file.write(open(GDBINIT_FILE, 'r').read())
             for key, option in self.opts.iteritems():
                 cmd_file.write("\n" + option.prefix + " " + option.value)
-        print 'Generated command file successfully! (' + cmd_file.name + ')'
+        print '\tGenerated command file -> ' + cmd_file.name
 
     def add_option(self, key, option):
         self.opts[key] = option
@@ -240,23 +240,23 @@ class GeneratedConfig(BaseConfig):
 class CoreConfig(GeneratedConfig):
     def __init__(self, args):
         GeneratedConfig.__init__(self, args)
-        self.create_report = args.report
         self.init_search_paths()
         self.add_option('core', DebugOption('core-file', get_str_repr(os.path.abspath(args.core.name))))
-        self.generate_command_file()
+        self.generate_command_file(args.report)
 
-    def generate_command_file(self):
+    def generate_command_file(self, create_report):
         GeneratedConfig.generate_command_file(self)
-        if (self.create_report):
-            if (os.path.isfile(CORE_COMMANDS_FILE)):
+        if create_report:
+            if os.path.isfile(CORE_COMMANDS_FILE):
                 old_contents = open(self.command_file, 'r').read()
                 with open(self.command_file, 'w') as cmd_file:
+                    cmd_file.write('set logging overwrite on\n')
                     cmd_file.write('set logging file ' + CORE_REPORT_FILE + '\n')
                     cmd_file.write('set logging on\n')
-                    cmd_file.write('set logging overwrite on\n')
                     cmd_file.write('set logging redirect on\n')
                     cmd_file.write(old_contents + '\n\n')
                     cmd_file.write(open(CORE_COMMANDS_FILE, 'r').read())
+                    print "\tGenerated core dump report -> " + CORE_REPORT_FILE
             else:
                 raise Exception('Could not create report. Missing core commands file - ("' + CORE_COMMANDS_FILE + '). Please add it and try again."')
 
@@ -348,7 +348,6 @@ class TelnetConnection:
 
 
 def run_gdb(gdb_path, command_file):
-    print "Starting gdb..."
     returncode = None
     process = None
     try:
