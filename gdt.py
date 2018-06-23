@@ -10,7 +10,8 @@ import subprocess
 import telnetlib
 
 GDT_DIR = os.path.dirname(os.path.abspath(__file__))
-GDT_CONFIG_DIR = os.path.join(GDT_DIR, 'gdt_files')
+GDT_CONFIG_DIRNAME = 'gdt_files'
+GDT_CONFIG_DIR = os.path.join(GDT_DIR, GDT_CONFIG_DIRNAME)
 GDT_CONFIG_FILENAME = 'config.json'
 GDT_CONFIG_FILE = os.path.join(GDT_CONFIG_DIR, GDT_CONFIG_FILENAME)
 DEFAULT_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'commands.txt')
@@ -68,8 +69,7 @@ def is_cpp_file(path):
 
 
 def extract_filename(filepath):
-    filename = os.path.split(filepath)[1]
-    return os.path.splitext(filename)[0]
+    return os.path.splitext(os.path.split(filepath)[1])[0]
 
 
 class RequiredFileMissing(IOError):
