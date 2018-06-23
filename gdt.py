@@ -12,7 +12,7 @@ import telnetlib
 GDT_DIR = os.path.dirname(os.path.abspath(__file__))
 GDT_CONFIG_DIR = os.path.join(GDT_DIR, 'gdt_files')
 GDT_CONFIG_FILE = os.path.join(GDT_CONFIG_DIR, 'config.json')
-GDB_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'commands.txt')
+DEFAULT_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'commands.txt')
 GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'gdbinit')
 DEFAULT_GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'default_gdbinit')
 CORE_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'core_report_commands')
@@ -23,6 +23,7 @@ DEFAULT_USER = "vagrant"
 DEFAULT_PASSWORD = "vagrant"
 DEFAULT_DEBUG_PORT = "8000"
 DEFAULT_PROMPT = "# "
+DEFAULT_EXCLUDED_DIRS = ['.git', '.svn', '.code']
 
 IPV4_REGEX = re.compile(r"^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
 PORT_REGEX = re.compile(r"^([0-9]{1,4}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$")
@@ -36,7 +37,7 @@ def get_str_repr(string):
 
 def verify_path_exists(path, path_exists):
     if path and not path_exists(path):
-        raise Exception('path does not exist - "' + path + '"')
+        raise IOError('path does not exist - "' + path + '"')
 
 
 def verify_dir_exists(path):
@@ -45,6 +46,14 @@ def verify_dir_exists(path):
 
 def verify_file_exists(path):
     verify_path_exists(path, os.path.isfile)
+
+def verify_required_files_exist():
+    if not os.path.isdir(GDT_CONFIG_DIR):
+        raise RequiredFileMissing("configuration directory: " + GDT_CONFIG_DIR)
+    elif not os.path.isfile(CORE_COMMANDS_FILE):
+        raise RequiredFileMissing("core dump commands file: : " + CORE_COMMANDS_FILE)
+    elif not os.path.isfile(DEFAULT_GDBINIT_FILE):
+        raise RequiredFileMissing("gdbinit file: " + DEFAULT_GDBINIT_FILE)
 
 
 def validate_ipv4_address(ip):
@@ -69,9 +78,33 @@ def is_cpp_file(path):
     return re.search(CPP_REGEX, path) is not None
 
 
-def extract_program_name(program_path):
-    filename = os.path.split(program_path)[1]
+def extract_filename(filepath):
+    filename = os.path.split(filepath)[1]
     return os.path.splitext(filename)[0]
+
+class RequiredFileMissing(IOError):
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return "IO ERROR: missing required " + self.value + "\nPlease copy gdt_files directory from repository to " + GDT_DIR
+
+
+class InvalidConfig(Exception):
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+    def __str__(self):
+        return "VALIDATION ERROR: invalid '" + self.name + "' in config.json: " + self.value
+
+
+class TelnetError(Exception):
+    def __init__(self, name, value):
+        self.value = value
+
+    def __str__(self):
+        return "TELNET ERROR: " + self.value
 
 
 class Target:
@@ -80,48 +113,41 @@ class Target:
         self.user = user
         self.password = password
         self.port = port
-        self.validate()
 
     def full_address(self):
         return self.ip + ":" + self.port
 
-    def validate(self):
-        ip = validate_ipv4_address(self.ip)
-        if not ip:
-            raise Exception('invalid target IPv4 address - "' + self.ip + '"')
 
-        port = validate_port(self.port)
-        if not port:
-            raise Exception('invalid target debug port - "' + self.port + '"')
-
-
-class DebugOption:
+class GDBCommand:
     def __init__(self, prefix, value):
         self.prefix = prefix
         self.value = value
 
+    def __str__(self):
+        return self.prefix + ' ' + self.value
 
-class ConfigOption:
-    def __init__(self, key, desc="", error_str="", validate_func=None, default_value=None, is_raw_input=True, value=None):
+
+class ConfigFileOption:
+    def __init__(self, key, desc="", error_str="", validate_func=None, default_value=None, ask_user=True, value=None):
         self.key = key
         self.default_value = default_value
         self.value = value
         self.desc = desc
         self.validate_func = validate_func
         self.error_str = error_str
-        self.is_raw_input = is_raw_input
+        self.ask_user = ask_user
 
         self.init_desc()
         self.init_value()
 
     def init_desc(self):
         if self.default_value:
-            self.desc = self.desc + ' [Default: "' + self.default_value + '"] -> '
+            self.desc = self.desc + ' [Default: "' + self.default_value + '"]: '
         else:
-            self.desc = self.desc + ' -> '
+            self.desc = self.desc + ': '
 
     def init_value(self):
-        if self.is_raw_input:
+        if self.ask_user:
             self.value = raw_input(self.desc).strip('"\'')
             if self.value == "" and self.default_value:
                 self.value = self.default_value
@@ -133,77 +159,86 @@ class ConfigOption:
         while not value:
             print '"{}" {} Enter again...'.format(self.value, self.error_str)
             value = raw_input(self.desc).strip('"\'')
-            value = self.default_value if (value == "" and self.default_value) else value
-            value = self.validate_func(value)
+            self.value = self.default_value if (value == "" and self.default_value) else value
+            value = self.validate_func(self.value)
         self.value = value
 
 
-class BaseConfig:
+class ConfigGenerator:
     def __init__(self, args):
-        self.generate_config_dir()
-        self.generate_gdbinit()
-        self.json_data = None
-        self.init_json_data(args.config)
-        self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
-        self.excluded_dir_names = self.json_data["excluded_dir_names"]
-        self.solib_separator = ";"
-        verify_file_exists(self.gdb_path)
+        self.run_gdb = False
+        self.generate_config_files()
 
-    def init_json_data(self, config_file):
-        print 'Reading gdt configuration...'
-        if config_file:
-            self.json_data = json.load(open(os.path.abspath(config_file.name)))
-        elif os.path.isfile(GDT_CONFIG_FILE):
-            self.json_data = json.load(open(GDT_CONFIG_FILE))
-        else:
-            print 'gdt configuration not found!'
-            self.generate_config_file()
+    def generate_config_files(self):
+        verify_required_files_exist()
 
-    def generate_config_dir(self):
-        if not os.path.isdir(GDT_CONFIG_DIR):
-            os.makedirs(GDT_CONFIG_DIR)
+        print 'This utility will walk you through creating a config.json file\n'
 
-    def generate_gdbinit(self):
-        if not os.path.isfile(GDBINIT_FILE):
-            with open(GDBINIT_FILE, 'w') as gdbinit:
-                gdbinit.write(open(DEFAULT_GDBINIT_FILE, 'r').read())
-                print 'Generated gdbinit -> ' + GDBINIT_FILE
-
-    def generate_config_file(self):
-        print 'Generating gdt configuration...'
-        options = [ConfigOption('gdb_path', 'GDB path', 'is not a file.', lambda file_path: os.path.abspath(file_path) if os.path.isfile(file_path) else None),
-                   ConfigOption('project_root_path', 'Project root path', 'is not a directory.', validate_dir),
-                   ConfigOption('symbol_root_path', 'Symbol root path', ' is not a directory.', validate_dir),
-                   ConfigOption('target_ip', 'Remote target IP', 'is an invalid IPv4 address.', validate_ipv4_address, DEFAULT_IP),
-                   ConfigOption('excluded_dir_names', is_raw_input=False, value=[".svn", ".git"]),
-                   ConfigOption('target_user', 'Remote target username', default_value=DEFAULT_USER),
-                   ConfigOption('target_password', 'Remote target password', default_value=DEFAULT_PASSWORD),
-                   ConfigOption('target_debug_port', 'Remote target debug port', "is an invalid port.", validate_port, DEFAULT_DEBUG_PORT),
-                   ConfigOption('target_prompt', 'Remote target prompt', default_value=DEFAULT_PROMPT)]
+        options = [ConfigFileOption('gdb_path', 'GDB path', 'is not a file.', lambda file_path: os.path.abspath(file_path) if os.path.isfile(file_path) else None),
+                   ConfigFileOption('project_root_path', 'Project root path', 'is not a directory.', validate_dir),
+                   ConfigFileOption('symbol_root_path', 'Symbol root path', ' is not a directory.', validate_dir),
+                   ConfigFileOption('target_ip', 'Remote target IP', 'is an invalid IPv4 address.', validate_ipv4_address, default_value=DEFAULT_IP),
+                   ConfigFileOption('excluded_dir_names', ask_user=False, value=DEFAULT_EXCLUDED_DIRS),
+                   ConfigFileOption('target_user', 'Remote target username', default_value=DEFAULT_USER),
+                   ConfigFileOption('target_password', 'Remote target password', default_value=DEFAULT_PASSWORD),
+                   ConfigFileOption('target_debug_port', 'Remote target debug port', "is an invalid port.", validate_port, DEFAULT_DEBUG_PORT),
+                   ConfigFileOption('target_prompt', 'Remote target prompt', default_value=DEFAULT_PROMPT)]
         option_dict = {option.key: option.value for option in options}
         with open(GDT_CONFIG_FILE, 'w') as config_file:
             json.dump(option_dict, config_file, sort_keys=True, indent=3)
         self.json_data = json.load(open(GDT_CONFIG_FILE, 'r'))
-        print '\tGenerated gdt configuration -> ' + GDT_CONFIG_FILE
+        print '\nCreated gdt configuration: ' + GDT_CONFIG_FILE
+
+class BaseConfig:
+    def __init__(self, args):
+        verify_required_files_exist()
+        self.check_config_exists(args.config)
+
+        self.run_gdb = True
+        self.json_data = json.load(open(args.config))
+        self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
+        self.excluded_dir_names = self.json_data["excluded_dir_names"]
+        self.solib_separator = ";"
+        self.validate_config_file()
+        self.update_gdbinit()
+
+    def check_config_exists(self, config_file):
+        if not os.path.isfile(config_file):
+            raise IOError("ERROR: config file does not exist: " + config_file + "\nPlease ensure the file exists or create a new config by running 'python gdt.py init'")
+        print "Using config file: " + config_file
+
+
+    def validate_config_file(self):
+        if not os.path.isfile(self.json_data["gdb_path"]):
+            raise InvalidConfig("gdb_path", self.json_data["gdb_path"])
+        elif not os.path.isdir(self.json_data["project_root_path"]):
+            raise InvalidConfig("project_root_path", self.json_data["project_root_path"])
+        elif not os.path.isdir(self.json_data["symbol_root_path"]):
+            raise InvalidConfig("symbol_root_path", self.json_data["symbol_root_path"])
+        elif not validate_ipv4_address(self.json_data["target_ip"]):
+            raise InvalidConfig("target_ip", self.json_data["target_ip"])
+        elif not validate_port(self.json_data["target_debug_port"]):
+            raise InvalidConfig("target_debug_port", self.json_data["target_debug_port"])
+
+    def update_gdbinit(self):
+        with open(GDBINIT_FILE, 'w') as gdbinit:
+            gdbinit.write(open(DEFAULT_GDBINIT_FILE, 'r').read())
 
 
 class GeneratedConfig(BaseConfig):
     def __init__(self, args):
         BaseConfig.__init__(self, args)
-        self.command_file = GDB_COMMANDS_FILE
+        self.command_file = DEFAULT_COMMANDS_FILE
         self.project_path = args.root if args.root else get_str_repr(os.path.abspath(self.json_data["project_root_path"]))
         self.symbol_root_path = args.symbols if args.symbols else self.json_data["symbol_root_path"]
         self.source_separator = ";"
-        self.opts = OrderedDict([("program", DebugOption('file', get_str_repr(os.path.abspath(args.program.name))))])
-        self.program_name = extract_program_name(self.opts['program'].value)
-        verify_dir_exists(self.project_path)
-        verify_dir_exists(self.symbol_root_path)
+        self.opts = OrderedDict([("program", GDBCommand('file', get_str_repr(os.path.abspath(args.program.name))))])
+        self.program_name = extract_filename(self.opts['program'].value)
 
     def init_search_paths(self):
         print "Generating search paths..."
-        self.add_option('solib_path', DebugOption('set solib-search-path', self.generate_solib_search_path()))
-        self.add_option('source_path', DebugOption('dir', self.generate_source_search_path()))
-        print "Done generating paths"
+        self.add_option('solib_path', GDBCommand('set solib-search-path', self.generate_solib_search_path()))
+        self.add_option('source_path', GDBCommand('dir', self.generate_source_search_path()))
 
     def generate_solib_search_path(self):
         search_path = []
@@ -225,13 +260,11 @@ class GeneratedConfig(BaseConfig):
         return self.source_separator.join(search_path)
 
     def generate_command_file(self):
-        print "Generating command file..."
         with open(self.command_file, 'w') as cmd_file:
-            if os.path.isfile(GDBINIT_FILE):
-                cmd_file.write(open(GDBINIT_FILE, 'r').read())
+            cmd_file.write(open(GDBINIT_FILE, 'r').read())
             for key, option in self.opts.iteritems():
-                cmd_file.write("\n" + option.prefix + " " + option.value)
-        print '\tGenerated command file -> ' + cmd_file.name
+                cmd_file.write("\n" + str(option))
+        print 'command file: ' + cmd_file.name
 
     def add_option(self, key, option):
         self.opts[key] = option
@@ -241,24 +274,21 @@ class CoreConfig(GeneratedConfig):
     def __init__(self, args):
         GeneratedConfig.__init__(self, args)
         self.init_search_paths()
-        self.add_option('core', DebugOption('core-file', get_str_repr(os.path.abspath(args.core.name))))
+        self.add_option('core', GDBCommand('core-file', get_str_repr(os.path.abspath(args.core.name))))
         self.generate_command_file(args.report)
 
     def generate_command_file(self, create_report):
         GeneratedConfig.generate_command_file(self)
         if create_report:
-            if os.path.isfile(CORE_COMMANDS_FILE):
-                old_contents = open(self.command_file, 'r').read()
-                with open(self.command_file, 'w') as cmd_file:
-                    cmd_file.write('set logging overwrite on\n')
-                    cmd_file.write('set logging file ' + CORE_REPORT_FILE + '\n')
-                    cmd_file.write('set logging on\n')
-                    cmd_file.write('set logging redirect on\n')
-                    cmd_file.write(old_contents + '\n\n')
-                    cmd_file.write(open(CORE_COMMANDS_FILE, 'r').read())
-                    print "\tGenerated core dump report -> " + CORE_REPORT_FILE
-            else:
-                raise Exception('Could not create report. Missing core commands file - ("' + CORE_COMMANDS_FILE + '). Please add it and try again."')
+            old_contents = open(self.command_file, 'r').read()
+            with open(self.command_file, 'w') as cmd_file:
+                cmd_file.write('set logging overwrite on\n')
+                cmd_file.write('set logging file ' + CORE_REPORT_FILE + '\n')
+                cmd_file.write('set logging on\n')
+                cmd_file.write('set logging redirect on\n')
+                cmd_file.write(old_contents + '\n')
+                cmd_file.write(open(CORE_COMMANDS_FILE, 'r').read())
+                print "core dump report: " + CORE_REPORT_FILE
 
 
 class RemoteConfig(GeneratedConfig):
@@ -276,10 +306,10 @@ class RemoteConfig(GeneratedConfig):
 
     def init_breakpoints(self, breakpoint_file):
         if breakpoint_file:
-            self.add_option('breakpoint', DebugOption('source', get_str_repr(os.path.abspath(breakpoint_file.name))))
+            self.add_option('breakpoint', GDBCommand('source', get_str_repr(os.path.abspath(breakpoint_file.name))))
 
     def init_target(self):
-        self.add_option('target', DebugOption('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address()))
+        self.add_option('target', GDBCommand('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address()))
         self.init_pid()
 
     def init_pid(self):
@@ -288,7 +318,7 @@ class RemoteConfig(GeneratedConfig):
         match = re.search(r'\d+ .*' + self.program_name, output)
         pid = match.group().split()[0] if match else None
         if pid:
-            self.add_option('pid', DebugOption('attach', pid))
+            self.add_option('pid', GDBCommand('attach', pid))
         print 'pid of ' + self.program_name + ' = ' + str(pid)
 
 
@@ -324,7 +354,7 @@ class TelnetConnection:
         try:
             self.session = telnetlib.Telnet(self.target.ip, self.PORT, self.TIMEOUT)
         except (socket.timeout, socket.error):
-            raise Exception('Telnet: Server doesn\'t respond')
+            raise TelnetError('Server didn\'t respond')
 
         self.read_response('login: ')
         self.session.write('{}\n'.format(self.target.user))
@@ -332,7 +362,8 @@ class TelnetConnection:
         self.session.write('{}\n'.format(self.target.password))
         resp = self.read_response(self.prompt)
         if resp[-2:] != self.prompt:
-            raise Exception('Telnet: Username or password invalid')
+            raise TelnetError('Invalid username or password')
+        self.change_prompt(self.prompt)
 
     def change_prompt(self, new_prompt):
         self.prompt = new_prompt
@@ -358,7 +389,7 @@ def run_gdb(gdb_path, command_file):
             except KeyboardInterrupt:
                 continue  # ignore interrupt to allow GDB child process to handle it
     except OSError as error:
-        print "gdt encountered an error: " + error.message
+        print "encountered an error: " + error.message
     finally:
         if process is not None and returncode is None:
             process.kill()
@@ -375,7 +406,7 @@ def parse_args():
     subparsers = parser.add_subparsers()
 
     base_parser = argparse.ArgumentParser(add_help=False)
-    base_parser.add_argument('-cfg', '--config', type=argparse.FileType(), help='Absolute or relative path to gdt\'s config file')
+    base_parser.add_argument('-cfg', '--config', default=GDT_CONFIG_FILE, type=str, help='Absolute or relative path to gdt\'s config file')
 
     generated_parser = argparse.ArgumentParser(add_help=False, parents=[base_parser])
     generated_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
@@ -396,6 +427,9 @@ def parse_args():
     cmd_parser.add_argument('input', type=argparse.FileType(), help='Absolute or relative path to command file')
     cmd_parser.set_defaults(func=lambda args: CommandConfig(args))
 
+    init_parser = subparsers.add_parser('init', help='Use to initialize config.json')
+    init_parser.set_defaults(func=lambda args: ConfigGenerator(args))
+
     args = parser.parse_args()
     close_files(args)
     return args
@@ -403,9 +437,14 @@ def parse_args():
 
 def main():
     args = parse_args()
-    config = args.func(args)
-    run_gdb(config.gdb_path, config.command_file)
-    print 'gdt session ended'
+    try:
+        config = args.func(args)
+        if config.run_gdb:
+            run_gdb(config.gdb_path, config.command_file)
+    except KeyboardInterrupt:
+        pass
+    except (InvalidConfig, RequiredFileMissing, TelnetError, IOError) as err:
+        print err
 
 
 if __name__ == '__main__':
