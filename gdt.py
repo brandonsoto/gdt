@@ -15,6 +15,8 @@ GDT_CONFIG_FILE = os.path.join(GDT_CONFIG_DIR, 'config.json')
 GDB_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'commands.txt')
 GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'gdbinit')
 DEFAULT_GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'default_gdbinit')
+CORE_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'core_report_commands')
+CORE_REPORT_FILE = os.path.join(GDT_CONFIG_DIR, 'core_report.log')
 
 DEFAULT_IP = "192.168.33.42"
 DEFAULT_USER = "vagrant"
@@ -238,9 +240,25 @@ class GeneratedConfig(BaseConfig):
 class CoreConfig(GeneratedConfig):
     def __init__(self, args):
         GeneratedConfig.__init__(self, args)
+        self.create_report = args.report
         self.init_search_paths()
         self.add_option('core', DebugOption('core-file', get_str_repr(os.path.abspath(args.core.name))))
         self.generate_command_file()
+
+    def generate_command_file(self):
+        GeneratedConfig.generate_command_file(self)
+        if (self.create_report):
+            if (os.path.isfile(CORE_COMMANDS_FILE)):
+                old_contents = open(self.command_file, 'r').read()
+                with open(self.command_file, 'w') as cmd_file:
+                    cmd_file.write('set logging file ' + CORE_REPORT_FILE + '\n')
+                    cmd_file.write('set logging on\n')
+                    cmd_file.write('set logging overwrite on\n')
+                    cmd_file.write('set logging redirect on\n')
+                    cmd_file.write(old_contents + '\n\n')
+                    cmd_file.write(open(CORE_COMMANDS_FILE, 'r').read())
+            else:
+                raise Exception('Could not create report. Missing core commands file - ("' + CORE_COMMANDS_FILE + '). Please add it and try again."')
 
 
 class RemoteConfig(GeneratedConfig):
@@ -334,7 +352,7 @@ def run_gdb(gdb_path, command_file):
     returncode = None
     process = None
     try:
-        process = subprocess.Popen(args=[gdb_path, '--command=' + command_file])
+        process = subprocess.Popen(args=[gdb_path, '--command=' + command_file, '-q'])
         while returncode is None:
             try:
                 returncode = process.wait()
@@ -367,6 +385,7 @@ def parse_args():
 
     core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[generated_parser])
     core_parser.add_argument('-c', '--core', required=True, type=argparse.FileType(), help='Absolute or relative path to core file')
+    core_parser.add_argument('-rp', '--report', action='store_true', help='Generate a core dump report')
     core_parser.set_defaults(func=lambda args: CoreConfig(args))
 
     remote_parser = subparsers.add_parser('remote', help='Use when debugging a remote program', parents=[generated_parser])
