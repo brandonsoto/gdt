@@ -21,6 +21,10 @@ exclude_lines =
     if __name__ == .__main__.:
     def parse_args
     def close_files
+    class RequiredFileMissing
+    class ConfigFileMissing
+    class InvalidConfig
+    class TelnetError
 
 ignore_errors = True
 include = ./
