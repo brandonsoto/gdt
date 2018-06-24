@@ -9,7 +9,7 @@ before_script:
   - ./cc-test-reporter before-build
 
 install:
-  - pip install -r requirements.txt
+  - pip install -r test-requirements.txt
 
 script:
   - export PYTHONPATH=$PWD
