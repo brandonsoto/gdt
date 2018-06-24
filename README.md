@@ -23,13 +23,13 @@ This file will be generated when you run gdt for the first time. It can be found
 
 ```code
 {
-    "gdb_path": "GDB_PATH",                      // path to GDB executable (I highly recommend QNX's GDB 7 - "<QNX_SDK_PATH>\\host\\win64\\x86_64\\usr\\bin\\ntoarmv7-gdb.exe")
+    "gdb_path": "GDB_PATH",                      // path to GDB executable
     "project_root_path": "PROJECT_ROOT",         // path to project's root directory
     "symbol_root_path": "SYMBOL_ROOT_PATH",      // path to root symbol directory
     "excluded_dir_names": ["EXCLUDED_DIR_NAME"], // names of directories to be excluded from solib/source path generating (ex. .svn, .git, .vscode, etc.)
-	"target_ip": "TARGET_IP4",                   // the target's IPv4 address (default: "192.168.1.26")
-    "target_user": "TARGET_USER",                // the target's username (default: "root")
-    "target_password": "TARGET_PASSWORD",        // the target's password (default: "#Pasa3Ford")
+	"target_ip": "TARGET_IP4",                   // the target's IPv4 address (default: "192.168.33.42")
+    "target_user": "TARGET_USER",                // the target's username (default: "vagrant")
+    "target_password": "TARGET_PASSWORD",        // the target's password (default: "vagrant")
     "target_debug_port": "DEBUG_PORT",           // the port to connect GDB to (default: "8000")
     "target_prompt": "TELNET_PROMPT"             // the target's command line prompt (default: "# ")
 }
@@ -91,7 +91,7 @@ end
 set pagination off
 set auto-solib-add on
 
-file D:\\Projects\\Symbols\\Multimedia\\bin\\program.full
+file D:\\Projects\\Symbols\\bin\\program.full
 set solib-search-path D:\\Projects\\Symbols\\;D:\\Projects\\Symbols\\release
 dir D:\\Projects\\program\\src
 target qnx 192.168.1.26:8000
