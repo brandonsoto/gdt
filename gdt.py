@@ -295,7 +295,7 @@ class CoreCommand(GeneratedCommand):
                 cmd_file.write('set logging redirect on\n')
                 cmd_file.write(old_contents + '\n')
                 cmd_file.write(open(CORE_COMMANDS_FILE, 'r').read())
-                print "core dump report: " + self.report_file
+                print "core dump report: " + os.path.abspath(self.report_file)
 
 
 class RemoteCommand(GeneratedCommand):
