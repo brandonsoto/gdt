@@ -347,7 +347,6 @@ class TelnetConnection:
         self.prompt = prompt
         self.target = target
         self.connect()
-        self.change_prompt(self.prompt)
 
     def __del__(self):
         self.close()
