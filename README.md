@@ -63,6 +63,11 @@ set pagination off
 set auto-solib-add on
 ```
 
+
+### default_gdbinit
+
+This file is used on the first startup of gdt to generate gdbinit. It can be found in gdt_files/. **DO NOT MODIFY THIS FILE.**
+
 ### commands.txt
 
 This is a file that gdt generates to pass to GDB. It can be found in gdt_files/. Any changes you make this file will be overwritten except when using the cmd gdt command-line option. Here's an example of what the file may look like:
@@ -86,18 +91,14 @@ end
 set pagination off
 set auto-solib-add on
 
-file D:\\Projects\\Symbols\\Multimedia\\bin\\armle-v7\\release\\MM_DioCarLifeService.full
-set solib-search-path D:\\Projects\\Symbols\\VehicleServices\\dll\\armle-v7\\release;D:\\Projects\\Symbols\\VCA\\dll\\armle-v7\\release
-dir D:\\Projects\\MY18.5_Baidu_Dev\\MM_DioCarLifeService\\src
+file D:\\Projects\\Symbols\\Multimedia\\bin\\program.full
+set solib-search-path D:\\Projects\\Symbols\\;D:\\Projects\\Symbols\\release
+dir D:\\Projects\\program\\src
 target qnx 192.168.1.26:8000
 attach 101181
 ```
 
 The actual file will be a lot longer than this example.
-
-### default_gdbinit
-
-This file is used on the first startup of gdt to generate gdbinit. It can be found in gdt_files/. **DO NOT MODIFY THIS FILE.**
 
 ### core_report_commands
 
@@ -162,7 +163,7 @@ python gdt.py cmd Project/gdb_commands.txt
 ```
 
 ## Known Issues
-
-    There is a chance that GDB will not show the correct source location when using the "frame" command. This occurs when multiple source files have the same name. The current source path algorithm does not account for this. For the time being, if this happens please run:
-
-    dir <source_dir> // source_dir = directory of source file
+There is a chance that GDB will not show the correct source location when using the "frame" command. This occurs when multiple source files have the same name. The current source path algorithm does not account for this. For the time being, if this happens please run:
+```code
+dir <source_dir> // source_dir = directory of source file
+```
