@@ -115,3 +115,14 @@ def test_verify_required_files_exist(tmpdir):
     g.CORE_COMMANDS_FILE = old_commands_file
     g.DEFAULT_GDBINIT_FILE = old_gdbinit
     g.GDT_CONFIG_DIR = old_dir
+
+
+def test_target_class():
+    target = g.Target('192.168.33.42', 'user', 'password', '4242')
+    assert target.full_address() == '192.168.33.42:4242'
+
+
+def test_gdbcommand_class():
+    gdb_command = g.GDBCommand('prefix', 'value')
+    assert str(gdb_command) == 'prefix value'
+
