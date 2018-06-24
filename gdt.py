@@ -127,6 +127,9 @@ class GDBCommand:
 
 
 class ConfigFileOption:
+    key = ""
+    value = ""
+
     def __init__(self, key, desc="", error_str="", validate_func=None, default_value=None, ask_user=True, value=None):
         self.key = key
         self.default_value = default_value
@@ -164,7 +167,7 @@ class ConfigFileOption:
 
 
 class ConfigGenerator:
-    def __init__(self, args):
+    def __init__(self, args=None):
         self.run_gdb = False
         self.generate_config_file()
 

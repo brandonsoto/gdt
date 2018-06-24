@@ -9,7 +9,7 @@ before_script:
   - ./cc-test-reporter before-build
 
 install:
-  - pip install pytest pytest-cov
+  - pip install -r requirements.txt
 
 script:
   - export PYTHONPATH=$PWD

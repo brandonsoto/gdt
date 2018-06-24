@@ -1,0 +1,12 @@
+[[source]]
+verify_ssl = true
+url = "https://pypi.python.org/simple"
+
+[dev-packages]
+pytest = "*"
+pytest-cov = "*"
+pytest-mock = "*"
+mock = "==2.0.0"
+
+[requires]
+python_version = "2.7"

@@ -1,0 +1,58 @@
+{
+    "_meta": {
+        "hash": {
+            "sha256": "40d994e0a19de5d6d55b00768480300a9025ae302a909db8f19fc2cb5395fa35"
+        },
+        "requires": {
+            "python_version": "2.7"
+        },
+        "sources": [
+            {
+                "url": "https://pypi.python.org/simple",
+                "verify_ssl": true
+            }
+        ]
+    },
+    "default": {},
+    "develop": {
+        "atomicwrites": {
+            "version": "==1.1.5"
+        },
+        "attrs": {
+            "version": "==18.1.0"
+        },
+        "coverage": {
+            "version": "==4.5.1"
+        },
+        "mock": {
+            "version": "==2.0.0"
+        },
+        "more-itertools": {
+            "version": "==4.2.0"
+        },
+        "pbr": {
+            "version": "==4.0.4"
+        },
+        "pluggy": {
+            "version": "==0.6.0"
+        },
+        "py": {
+            "version": "==1.5.3"
+        },
+        "pytest": {
+            "version": "==3.6.2"
+        },
+        "pytest-cov": {
+            "version": "==2.5.1"
+        },
+        "pytest-mock": {
+            "version": "==1.10.0"
+        },
+        "setuptools": {
+            "version": "==39.2.0"
+        },
+        "six": {
+            "version": "==1.11.0"
+        }
+    }
+}
