@@ -185,6 +185,8 @@ class ConfigGenerator:
         option_dict = {option.key: option.value for option in options}
         with open(GDT_CONFIG_FILE, 'w') as config_file:
             json.dump(option_dict, config_file, sort_keys=True, indent=3)
+        with open(GDBINIT_FILE, 'w') as gdbinit:
+            gdbinit.write(open(DEFAULT_GDBINIT_FILE, 'r').read())
         print '\nCreated gdt configuration: ' + GDT_CONFIG_FILE
 
 
@@ -200,7 +202,7 @@ class BaseCommand:
         self.excluded_dir_names = self.json_data["excluded_dir_names"]
         self.solib_separator = ";"
         self.validate_config_file()
-        self.update_gdbinit()
+        self.create_gdbinit()
 
     def check_config_exists(self, config_file):
         if not os.path.isfile(config_file):
@@ -219,9 +221,10 @@ class BaseCommand:
         elif not validate_port(self.json_data["target_debug_port"]):
             raise InvalidConfig("target_debug_port", self.json_data["target_debug_port"], self.config_file)
 
-    def update_gdbinit(self):
-        with open(GDBINIT_FILE, 'w') as gdbinit:
-            gdbinit.write(open(DEFAULT_GDBINIT_FILE, 'r').read())
+    def create_gdbinit(self):
+        if not os.path.isfile(GDBINIT_FILE):
+            with open(GDBINIT_FILE, 'w') as gdbinit:
+                gdbinit.write(open(DEFAULT_GDBINIT_FILE, 'r').read())
 
 
 class GeneratedCommand(BaseCommand):
