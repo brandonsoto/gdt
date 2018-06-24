@@ -3,8 +3,19 @@ language: python
 python:
   - "2.7"
 
+before_script:
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - ./cc-test-reporter before-build
+
 install:
-  - pip install pytest
+  - pip install pytest pytest-cov
 
 script:
-  - python -m pytest
+  - export PYTHONPATH=$PWD
+  - python -m pytest --cov=./ --cov-config=.coveragerc --cov-report=xml --cov-report=term
+
+after_script:
+  - ./cc-test-reporter format-coverage --input-type coverage.py -p $PWD
+  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT
+
