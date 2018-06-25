@@ -25,6 +25,7 @@ exclude_lines =
     class ConfigFileMissing
     class InvalidConfig
     class TelnetError
+    def main
 
 ignore_errors = True
 include = ./
