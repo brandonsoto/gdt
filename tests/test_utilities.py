@@ -1,6 +1,7 @@
-import pytest
 import gdt
 import os
+import pytest
+import socket
 
 
 class TestUtilities(object):
@@ -186,18 +187,16 @@ class TestTelnetConnection(object):
         return session_mock
 
     @pytest.fixture
-    def telnet(self):
-        return gdt.TelnetConnection(gdt.Target(gdt.DEFAULT_IP, 'user', 'passwd', gdt.DEFAULT_DEBUG_PORT), gdt.DEFAULT_PROMPT)
+    def telnet(self, session):
+        mock_telnet = gdt.TelnetConnection(gdt.Target(gdt.DEFAULT_IP, 'user', 'passwd', gdt.DEFAULT_DEBUG_PORT), gdt.DEFAULT_PROMPT)
+        mock_telnet.session = session
+        return mock_telnet
 
     def test_read_response(self, telnet, session):
-        telnet.session = session
-
         assert telnet.read_response(gdt.DEFAULT_PROMPT) == self.response
         session.read_until.assert_called_once()
 
     def test_send_command(self, telnet, session):
-        telnet.session = session
-
         assert telnet.send_command('ls') == self.response
         session.write.assert_called_once_with('ls\n')
         session.read_until.assert_called_once()
@@ -213,7 +212,6 @@ class TestTelnetConnection(object):
 
     def test_change_prompt(self, telnet, session):
         new_prompt = "$ "
-        telnet.session = session
 
         assert telnet.prompt != new_prompt
 
@@ -223,6 +221,30 @@ class TestTelnetConnection(object):
         session.write.assert_called_once_with('PS1="' + new_prompt + '"\n')
         assert session.read_until.call_count == 2
 
-    @pytest.mark.skip
-    def test_connect(self, telnet, session):
-        pass
+    def test_connect(self, telnet, session, mocker):
+        mocker.patch('telnetlib.Telnet', return_value=session)
+        session.read_until = mocker.MagicMock(return_value=telnet.prompt)
+
+        try:
+            telnet.connect()
+            session.read_until.assert_has_calls(
+                calls=[mocker.call('login: ', telnet.TIMEOUT),
+                       mocker.call('Password:', telnet.TIMEOUT),
+                       mocker.call(telnet.prompt, telnet.TIMEOUT)],
+                any_order=True)
+        except Exception as err:
+            pytest.fail("Unexpected error: " + err.message)
+
+    def test_connect_server_failed(self, telnet, mocker):
+        mocker.patch('telnetlib.Telnet', side_effect=socket.error)
+
+        with pytest.raises(gdt.TelnetError):
+            telnet.connect()
+
+    def test_connect_bad_credentials(self, telnet, session, mocker):
+        mocker.patch('telnetlib.Telnet', return_value=session)
+        session.read_until = mocker.MagicMock(return_value='login: ')
+
+        with pytest.raises(gdt.TelnetError):
+            telnet.connect()
+

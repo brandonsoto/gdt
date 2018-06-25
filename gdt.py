@@ -371,9 +371,8 @@ class TelnetConnection:
         self.read_response('Password:')
         self.session.write('{}\n'.format(self.target.password))
         resp = self.read_response(self.prompt)
-        if resp[-2:] != self.prompt:
+        if 'login: ' in resp:
             raise TelnetError('Invalid username or password')
-        self.change_prompt(self.prompt)
 
     def change_prompt(self, new_prompt):
         self.prompt = new_prompt
