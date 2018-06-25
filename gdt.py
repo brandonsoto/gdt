@@ -308,6 +308,7 @@ class RemoteCommand(GeneratedCommand):
         self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"])
         self.source_separator = ";" if self.is_qnx_target else ":"
         self.telnet = TelnetConnection(self.target, self.json_data["target_prompt"])
+        self.telnet.connect()
 
         self.init_search_paths()
         self.init_target()
@@ -343,10 +344,10 @@ class TelnetConnection:
     def __init__(self, target, prompt):
         self.PORT = 23
         self.TIMEOUT = 10
+        self.PID_CMD = 'ps -A | grep '
         self.session = None
         self.prompt = prompt
         self.target = target
-        self.connect()
 
     def __del__(self):
         self.close()
@@ -384,7 +385,7 @@ class TelnetConnection:
         return self.read_response(self.prompt)
 
     def get_pid_of(self, service):
-        return self.send_command("ps -A | grep " + service)
+        return self.send_command(self.PID_CMD + service)
 
 
 def run_gdb(gdb_path, command_file):

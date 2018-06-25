@@ -132,6 +132,7 @@ class TestConfigGenerator(object):
         mock_open.assert_any_call(gdt.GDT_CONFIG_FILE, 'w')
         mock_open.assert_any_call(gdt.GDBINIT_FILE, 'w')
 
+
 class TestConfigFileOption(object):
     @pytest.fixture
     def config_file_option(self):
@@ -174,3 +175,54 @@ class TestConfigFileOption(object):
         assert config_file_option.desc == expected
 
 
+class TestTelnetConnection(object):
+    response = 'telnet response'
+
+    @pytest.fixture
+    def session(self, mocker):
+        session_mock = mocker.MagicMock()
+        session_mock.read_until = mocker.MagicMock(return_value=self.response)
+        session_mock.write = mocker.MagicMock()
+        return session_mock
+
+    @pytest.fixture
+    def telnet(self):
+        return gdt.TelnetConnection(gdt.Target(gdt.DEFAULT_IP, 'user', 'passwd', gdt.DEFAULT_DEBUG_PORT), gdt.DEFAULT_PROMPT)
+
+    def test_read_response(self, telnet, session):
+        telnet.session = session
+
+        assert telnet.read_response(gdt.DEFAULT_PROMPT) == self.response
+        session.read_until.assert_called_once()
+
+    def test_send_command(self, telnet, session):
+        telnet.session = session
+
+        assert telnet.send_command('ls') == self.response
+        session.write.assert_called_once_with('ls\n')
+        session.read_until.assert_called_once()
+
+    def test_get_pid_of(self, mocker, telnet, session):
+        pid = '4242'
+        session.read_until = mocker.MagicMock(return_value=pid)
+        telnet.session = session
+
+        assert telnet.get_pid_of('test_program') == pid
+        session.write.assert_called_once_with(telnet.PID_CMD + 'test_program\n')
+        session.read_until.assert_called_once()
+
+    def test_change_prompt(self, telnet, session):
+        new_prompt = "$ "
+        telnet.session = session
+
+        assert telnet.prompt != new_prompt
+
+        telnet.change_prompt(new_prompt)
+
+        assert telnet.prompt == new_prompt
+        session.write.assert_called_once_with('PS1="' + new_prompt + '"\n')
+        assert session.read_until.call_count == 2
+
+    @pytest.mark.skip
+    def test_connect(self, telnet, session):
+        pass
