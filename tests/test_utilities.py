@@ -79,16 +79,6 @@ class TestUtilities(object):
 
         gdt.GDT_CONFIG_DIR = old_dir
 
-    def test_verify_required_files_exist_when_missing_gdbinit_file(self, tmpdir):
-        gdt.GDT_CONFIG_DIR = tmpdir.strpath
-        gdt.CORE_COMMANDS_FILE = tmpdir.join("corecommands").strpath
-        gdt.DEFAULT_GDBINIT_FILE = tmpdir.join("gdbinit").strpath
-
-        tmpdir.join("corecommands").write("")
-
-        with pytest.raises(gdt.RequiredFileMissing):
-            gdt.verify_required_files_exist()
-
     def test_verify_required_files_exist_when_missing_commands_file(self, tmpdir):
         gdt.GDT_CONFIG_DIR = tmpdir.strpath
         gdt.CORE_COMMANDS_FILE = tmpdir.join("corecommands").strpath
@@ -131,7 +121,6 @@ class TestConfigGenerator(object):
 
         mock_dump.assert_called_once()
         mock_open.assert_any_call(gdt.GDT_CONFIG_FILE, 'w')
-        mock_open.assert_any_call(gdt.GDBINIT_FILE, 'w')
 
 
 class TestConfigFileOption(object):

@@ -16,7 +16,6 @@ GDT_CONFIG_FILENAME = 'config.json'
 GDT_CONFIG_FILE = os.path.join(GDT_CONFIG_DIR, GDT_CONFIG_FILENAME)
 DEFAULT_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'commands.txt')
 GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'gdbinit')
-DEFAULT_GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'default_gdbinit')
 CORE_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'core_report_commands')
 DEFAULT_CORE_REPORT_FILE = os.path.join(GDT_CONFIG_DIR, 'coredump_report.log')
 
@@ -42,8 +41,6 @@ def verify_required_files_exist():
         raise RequiredFileMissing("configuration directory: " + GDT_CONFIG_DIR)
     elif not os.path.isfile(CORE_COMMANDS_FILE):
         raise RequiredFileMissing("core dump commands file: : " + CORE_COMMANDS_FILE)
-    elif not os.path.isfile(DEFAULT_GDBINIT_FILE):
-        raise RequiredFileMissing("gdbinit file: " + DEFAULT_GDBINIT_FILE)
 
 
 def validate_ipv4_address(ip):
@@ -188,8 +185,6 @@ class ConfigGenerator:
         option_dict = {option.key: option.value for option in options}
         with open(GDT_CONFIG_FILE, 'w') as config_file:
             json.dump(option_dict, config_file, sort_keys=True, indent=3)
-        with open(GDBINIT_FILE, 'w') as gdbinit:
-            gdbinit.write(open(DEFAULT_GDBINIT_FILE, 'r').read())
         print '\nCreated gdt configuration: ' + GDT_CONFIG_FILE
 
 
@@ -205,7 +200,6 @@ class BaseCommand:
         self.excluded_dir_names = self.json_data["excluded_dir_names"]
         self.solib_separator = ";"
         self.validate_config_file()
-        self.create_gdbinit()
 
     def check_config_exists(self, config_file):
         if not os.path.isfile(config_file):
@@ -223,11 +217,6 @@ class BaseCommand:
             raise InvalidConfig("target_ip", self.json_data["target_ip"], self.config_file)
         elif not validate_port(self.json_data["target_debug_port"]):
             raise InvalidConfig("target_debug_port", self.json_data["target_debug_port"], self.config_file)
-
-    def create_gdbinit(self):
-        if not os.path.isfile(GDBINIT_FILE):
-            with open(GDBINIT_FILE, 'w') as gdbinit:
-                gdbinit.write(open(DEFAULT_GDBINIT_FILE, 'r').read())
 
 
 class GeneratedCommand(BaseCommand):
@@ -266,7 +255,8 @@ class GeneratedCommand(BaseCommand):
 
     def generate_command_file(self):
         with open(self.command_file, 'w') as cmd_file:
-            cmd_file.write(open(GDBINIT_FILE, 'r').read())
+            if os.path.isfile(GDBINIT_FILE):
+                cmd_file.write(open(GDBINIT_FILE, 'r').read())
             for key, option in self.opts.iteritems():
                 cmd_file.write("\n" + str(option))
 
