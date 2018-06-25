@@ -154,7 +154,7 @@ class TestConfigFileOption(object):
         mock_input.assert_called_once()
         assert config_file_option.value == expected
 
-    def test_init_value_no_input(self, mocker, config_file_option):
+    def test_init_value_no_user_input(self, mocker, config_file_option):
         mock_input = mocker.patch('__builtin__.raw_input', return_value='bad_value')
         config_file_option.ask_user = False
 
@@ -174,6 +174,19 @@ class TestConfigFileOption(object):
         config_file_option.init_desc()
 
         assert config_file_option.desc == expected
+
+    def test_get_valid_value(self, config_file_option, mocker):
+        value = 'valid_value'
+        mock_input = mocker.patch('__builtin__.raw_input', return_value=value)
+        config_file_option.validate_func = mocker.MagicMock(side_effect=[None, value])
+
+        assert config_file_option.value is None
+
+        config_file_option.get_valid_value()
+
+        assert config_file_option.value == value
+        mock_input.assert_called_once()
+        config_file_option.validate_func.assert_has_calls(calls=[mocker.call(None), mocker.call(value)])
 
 
 class TestTelnetConnection(object):
@@ -230,8 +243,7 @@ class TestTelnetConnection(object):
             session.read_until.assert_has_calls(
                 calls=[mocker.call('login: ', telnet.TIMEOUT),
                        mocker.call('Password:', telnet.TIMEOUT),
-                       mocker.call(telnet.prompt, telnet.TIMEOUT)],
-                any_order=True)
+                       mocker.call(telnet.prompt, telnet.TIMEOUT)])
         except Exception as err:
             pytest.fail("Unexpected error: " + err.message)
 
