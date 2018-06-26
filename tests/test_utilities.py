@@ -274,7 +274,11 @@ class TestTelnetConnection(object):
 
 class TestBaseCommand(object):
     @pytest.fixture
-    def basecmd(self, mocker):
+    def mock_open(self, mocker):
+        return mocker.patch('__builtin__.open', mocker.mock_open(mock=mocker.MagicMock(return_value='arg', read_data='test_file_data')))
+
+    @pytest.fixture
+    def basecmd(self, mocker, mock_open):
         json_data = {"gdb_path": "/gdb",
                      "project_root_path": "/project",
                      "symbol_root_path" : "/symbol",
@@ -282,13 +286,19 @@ class TestBaseCommand(object):
                      "target_ip": gdt.DEFAULT_IP,
                      "target_debug_port": gdt.DEFAULT_DEBUG_PORT}
 
-        mocker.patch('__builtin__.open', side_effect=lambda arg: arg)
         mocker.patch('json.load', return_value=json_data)
         mocker.patch('os.path.isdir', return_value=True)
         mocker.patch('os.path.isfile', return_value=True)
         mocker.patch('os.path.abspath', side_effect=lambda path: path)
 
-        return gdt.BaseCommand(MockArgs())
+        args = MockArgs()
+        cmd = gdt.BaseCommand(args)
+        assert cmd.run_gdb
+        assert cmd.json_data == json_data
+        assert cmd.config_file == args.config
+        assert cmd.gdb_path == os.path.abspath(json_data['gdb_path'])
+        assert cmd.excluded_dir_names == json_data["excluded_dir_names"]
+        return cmd
 
     def test_check_config_exists(self, basecmd, mocker):
         isfile_mock = mocker.patch('os.path.isfile', return_value=True)
@@ -326,7 +336,18 @@ class TestGeneratedCommand(object):
         mocker.patch('os.path.isfile', return_value=True)
         mocker.patch('os.path.abspath', side_effect=lambda path: path)
 
-        return gdt.GeneratedCommand(MockArgs())
+        args = MockArgs()
+        cmd = gdt.GeneratedCommand(args)
+        assert cmd.run_gdb
+        assert cmd.json_data == json_data
+        assert cmd.config_file == args.config
+        assert cmd.gdb_path == os.path.abspath(json_data['gdb_path'])
+        assert cmd.excluded_dir_names == json_data["excluded_dir_names"]
+        assert 'program' in cmd.opts and cmd.opts['program'].prefix == 'file'
+        assert cmd.symbol_root_path == args.symbols
+        assert cmd.project_path == args.root
+        assert cmd.command_file == gdt.DEFAULT_COMMANDS_FILE
+        return cmd
 
     def test_add_option(self, cmd):
         assert 'key' not in cmd.opts
@@ -374,7 +395,16 @@ class TestCoreCommand(object):
         mocker.patch('os.path.isfile', return_value=True)
         mocker.patch('os.path.abspath', side_effect=lambda path: path)
 
-        return gdt.CoreCommand(MockArgs())
+        args = MockArgs()
+        cmd = gdt.CoreCommand(args)
+        assert cmd.run_gdb
+        assert cmd.json_data == json_data
+        assert cmd.config_file == args.config
+        assert cmd.gdb_path == os.path.abspath(json_data['gdb_path'])
+        assert cmd.excluded_dir_names == json_data["excluded_dir_names"]
+        assert 'core' in cmd.opts and cmd.opts['core'].prefix == 'core-file'
+        assert cmd.report_file == args.report_out
+        return cmd
 
     @pytest.mark.parametrize('generate_report', [False, True])
     def test_validate_args_success(self, core_cmd, generate_report):
@@ -426,6 +456,8 @@ class TestCmdFileCommand(object):
         args = MockArgs()
         args.input.name = command_file
         cmd = gdt.CmdFileCommand(args)
-
+        assert cmd.run_gdb
+        assert cmd.json_data == json_data
+        assert cmd.gdb_path == os.path.abspath(json_data['gdb_path'])
         assert cmd.command_file == command_file
 
