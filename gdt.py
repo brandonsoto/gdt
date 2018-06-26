@@ -279,7 +279,7 @@ class CoreCommand(GeneratedCommand):
 
     def validate_args(self, args):
         if not args.report and args.report_out != DEFAULT_CORE_REPORT_FILE:
-            raise Exception("ERROR: Need to specify --report when using --report-out")
+            raise InvalidArgs("ERROR: Need to specify --report when using --report-out")
 
     def generate_command_file(self, create_report):
         GeneratedCommand.generate_command_file(self)

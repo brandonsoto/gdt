@@ -25,6 +25,8 @@ exclude_lines =
     class ConfigFileMissing
     class InvalidConfig
     class TelnetError
+    class GDTException
+    class InvalidArgs
     def main
 
 ignore_errors = True

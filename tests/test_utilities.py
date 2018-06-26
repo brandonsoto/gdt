@@ -384,7 +384,7 @@ class TestCoreCommand(object):
             pytest.fail("Unexpected error: " + err.message)
 
     def test_validate_args_fail(self, core_cmd):
-        with pytest.raises(Exception):
+        with pytest.raises(gdt.InvalidArgs):
             output_file = '/bobo'
             assert output_file != gdt.DEFAULT_CORE_REPORT_FILE
             core_cmd.validate_args(MockReportArgs(False, output_file))
