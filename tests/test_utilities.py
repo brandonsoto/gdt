@@ -1,7 +1,29 @@
 import gdt
+import mock
 import os
 import pytest
 import socket
+
+
+class MockArgs:
+    config = "/config.json"
+    root = "/root"
+    symbols = "/symbols"
+    program = mock.MagicMock()
+    core = mock.MagicMock()
+    report = False
+    report_out = gdt.DEFAULT_CORE_REPORT_FILE
+    command_file = '/command_file'
+    input = mock.MagicMock()
+
+
+class MockReportArgs:
+    report = False
+    report_out = ""
+
+    def __init__(self, report, report_out):
+        self.report = report
+        self.report_out = report_out
 
 
 class TestUtilities(object):
@@ -248,4 +270,148 @@ class TestTelnetConnection(object):
 
         with pytest.raises(gdt.TelnetError):
             telnet.connect()
+
+
+class TestBaseCommand(object):
+    @pytest.fixture
+    def basecmd(self, mocker):
+        json_data = {"gdb_path": "/gdb",
+                     "project_root_path": "/project",
+                     "symbol_root_path" : "/symbol",
+                     "excluded_dir_names": [".vscode", ".git"],
+                     "target_ip": gdt.DEFAULT_IP,
+                     "target_debug_port": gdt.DEFAULT_DEBUG_PORT}
+
+        mocker.patch('__builtin__.open', side_effect=lambda arg: arg)
+        mocker.patch('json.load', return_value=json_data)
+        mocker.patch('os.path.isdir', return_value=True)
+        mocker.patch('os.path.isfile', return_value=True)
+        mocker.patch('os.path.abspath', side_effect=lambda path: path)
+
+        return gdt.BaseCommand(MockArgs())
+
+    def test_check_config_exists(self, basecmd, mocker):
+        isfile_mock = mocker.patch('os.path.isfile', return_value=True)
+
+        try:
+            basecmd.check_config_exists("/home/config")
+            isfile_mock.assert_called_once_with('/home/config')
+        except Exception as err:
+            pytest.fail("Unexpected error: " + err.message)
+
+    def test_check_config_exists_fail(self, basecmd, mocker):
+        isfile_mock = mocker.patch('os.path.isfile', return_value=False)
+
+        with pytest.raises(gdt.ConfigFileMissing):
+            basecmd.check_config_exists("/home/config")
+            isfile_mock.assert_called_once_with('/home/config')
+
+
+class TestGeneratedCommand(object):
+    @pytest.fixture
+    def mock_open(self, mocker):
+        return mocker.patch('__builtin__.open', mocker.mock_open(mock=mocker.MagicMock(return_value='arg', read_data='test_file_data')))
+
+    @pytest.fixture
+    def cmd(self, mocker, mock_open):
+        json_data = {"gdb_path": "/gdb",
+                     "project_root_path": "/project",
+                     "symbol_root_path" : "/symbol",
+                     "excluded_dir_names": [".vscode", ".git"],
+                     "target_ip": gdt.DEFAULT_IP,
+                     "target_debug_port": gdt.DEFAULT_DEBUG_PORT}
+
+        mocker.patch('json.load', return_value=json_data)
+        mocker.patch('os.path.isdir', return_value=True)
+        mocker.patch('os.path.isfile', return_value=True)
+        mocker.patch('os.path.abspath', side_effect=lambda path: path)
+
+        return gdt.GeneratedCommand(MockArgs())
+
+    def test_add_option(self, cmd):
+        assert 'key' not in cmd.opts
+
+        cmd.add_option("key", "option")
+
+        assert 'key' in cmd.opts
+        assert cmd.opts['key'] == 'option'
+
+    def test_init_search_paths(self, cmd):
+        assert 'solib_path' not in cmd.opts
+        assert 'source_path' not in cmd.opts
+
+        cmd.init_search_paths()
+
+        assert 'solib_path' in cmd.opts
+        assert 'source_path' in cmd.opts
+
+    def test_generate_command_file(self, cmd, mocker, mock_open):
+        cmd.generate_command_file()
+
+        mock_open.assert_has_calls(calls=[
+            mocker.call(cmd.command_file, 'w'),
+            mocker.call(gdt.GDBINIT_FILE, 'r')
+        ], any_order=True)
+        mock_open().write.assert_called()
+
+
+class TestCoreCommand(object):
+    @pytest.fixture
+    def mock_open(self, mocker):
+        return mocker.patch('__builtin__.open', mocker.mock_open(mock=mocker.MagicMock(return_value='arg', read_data='test_file_data')))
+
+    @pytest.fixture
+    def core_cmd(self, mocker, mock_open):
+        json_data = {"gdb_path": "/gdb",
+                     "project_root_path": "/project",
+                     "symbol_root_path" : "/symbol",
+                     "excluded_dir_names": [".vscode", ".git"],
+                     "target_ip": gdt.DEFAULT_IP,
+                     "target_debug_port": gdt.DEFAULT_DEBUG_PORT}
+
+        mocker.patch('json.load', return_value=json_data)
+        mocker.patch('os.path.isdir', return_value=True)
+        mocker.patch('os.path.isfile', return_value=True)
+        mocker.patch('os.path.abspath', side_effect=lambda path: path)
+
+        return gdt.CoreCommand(MockArgs())
+
+    @pytest.mark.parametrize('generate_report', [False, True])
+    def test_validate_args_success(self, core_cmd, generate_report):
+        try:
+            core_cmd.validate_args(MockReportArgs(generate_report, gdt.DEFAULT_CORE_REPORT_FILE))
+        except Exception as err:
+            pytest.fail("Unexpected error: " + err.message)
+
+    def test_validate_args_fail(self, core_cmd):
+        with pytest.raises(Exception):
+            output_file = '/bobo'
+            assert output_file != gdt.DEFAULT_CORE_REPORT_FILE
+            core_cmd.validate_args(MockReportArgs(False, output_file))
+
+
+class TestCmdFileCommand(object):
+    @pytest.fixture
+    def mock_open(self, mocker):
+        return mocker.patch('__builtin__.open', mocker.mock_open(mock=mocker.MagicMock(return_value='arg', read_data='test_file_data')))
+
+    def test_constructor(self, mocker, mock_open):
+        command_file = '/home/command_file'
+        json_data = {"gdb_path": "/gdb",
+                     "project_root_path": "/project",
+                     "symbol_root_path" : "/symbol",
+                     "excluded_dir_names": [".vscode", ".git"],
+                     "target_ip": gdt.DEFAULT_IP,
+                     "target_debug_port": gdt.DEFAULT_DEBUG_PORT}
+
+        mocker.patch('json.load', return_value=json_data)
+        mocker.patch('os.path.isdir', return_value=True)
+        mocker.patch('os.path.isfile', return_value=True)
+        mocker.patch('os.path.abspath', side_effect=lambda path: path)
+
+        args = MockArgs()
+        args.input.name = command_file
+        cmd = gdt.CmdFileCommand(args)
+
+        assert cmd.command_file == command_file
 

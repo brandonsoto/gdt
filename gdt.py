@@ -16,7 +16,8 @@ GDT_CONFIG_FILENAME = 'config.json'
 GDT_CONFIG_FILE = os.path.join(GDT_CONFIG_DIR, GDT_CONFIG_FILENAME)
 DEFAULT_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'commands.txt')
 GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'gdbinit')
-CORE_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'core_report_commands')
+CORE_COMMANDS_FILENAME = 'core_report_commands'
+CORE_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, CORE_COMMANDS_FILENAME)
 DEFAULT_CORE_REPORT_FILE = os.path.join(GDT_CONFIG_DIR, 'coredump_report.log')
 
 DEFAULT_IP = "192.168.33.42"
@@ -69,38 +70,37 @@ def extract_filename(filepath):
     return os.path.splitext(os.path.split(filepath)[1])[0]
 
 
-class RequiredFileMissing(IOError):
-    def __init__(self, value):
-        self.value = value
+class GDTException(Exception):
+    def __init__(self, message):
+        self.message = message
 
     def __str__(self):
-        return "ERROR: missing required file: " + self.value + "\nPlease copy gdt_files directory from repository to " + GDT_DIR
+        return str(self.message)
 
 
-class ConfigFileMissing(IOError):
-    def __init__(self, value):
-        self.value = value
-
-    def __str__(self):
-        return "ERROR: config file does not exist: " + self.value + "\nPlease ensure the file path is correct or run 'python " + os.path.split(__file__)[1] + " init'."
+class RequiredFileMissing(GDTException):
+    def __init__(self, missing_file):
+        self.message = "ERROR: missing required file: " + missing_file + "\nPlease copy gdt_files directory from repository to " + GDT_DIR
 
 
-class InvalidConfig(Exception):
+class ConfigFileMissing(GDTException):
+    def __init__(self, missing_file):
+        self.message = "ERROR: config file does not exist: " + missing_file + "\nPlease ensure the file path is correct or run 'python " + os.path.split(__file__)[1] + " init'."
+
+
+class InvalidConfig(GDTException):
     def __init__(self, name, value, config_file):
-        self.name = name
-        self.value = value
-        self.config_file = config_file
-
-    def __str__(self):
-        return "VALIDATION ERROR: invalid '" + self.name + "' in " + self.config_file + ": " + self.value
+        self.message = "VALIDATION ERROR: invalid '" + name + "' in " + config_file + ": " + value
 
 
-class TelnetError(IOError):
-    def __init__(self, value):
-        self.value = value
+class InvalidArgs(GDTException):
+    def __init__(self, message):
+        self.message = "ARGUMENTS ERROR: " + message
 
-    def __str__(self):
-        return "TELNET ERROR: " + self.value
+
+class TelnetError(GDTException):
+    def __init__(self, message):
+        self.message = "TELNET ERROR: " + message
 
 
 class Target:
@@ -194,7 +194,7 @@ class BaseCommand:
         self.check_config_exists(args.config)
 
         self.run_gdb = True
-        self.config_file = args.config
+        self.config_file = os.path.abspath(args.config)
         self.json_data = json.load(open(args.config))
         self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
         self.excluded_dir_names = self.json_data["excluded_dir_names"]
@@ -440,14 +440,14 @@ def parse_args():
 
 
 def main():
-    args = parse_args()
     try:
+        args = parse_args()
         config = args.func(args)
         if config.run_gdb:
             run_gdb(config.gdb_path, config.command_file)
     except KeyboardInterrupt:
         pass
-    except (ConfigFileMissing, InvalidConfig, RequiredFileMissing, TelnetError) as err:
+    except (GDTException, IOError) as err:
         print err
 
 
