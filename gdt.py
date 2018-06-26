@@ -275,24 +275,24 @@ class CoreCommand(GeneratedCommand):
         self.init_search_paths()
         self.add_option('core', GDBCommand('core-file', get_str_repr(os.path.abspath(args.core.name))))
         self.report_file = args.report_out
-        self.generate_command_file(args.report)
+        self.generate_command_file()
+        if args.report:
+            self.generate_report()
 
     def validate_args(self, args):
         if not args.report and args.report_out != DEFAULT_CORE_REPORT_FILE:
             raise InvalidArgs("ERROR: Need to specify --report when using --report-out")
 
-    def generate_command_file(self, create_report):
-        GeneratedCommand.generate_command_file(self)
-        if create_report:
-            old_contents = open(self.command_file, 'r').read()
-            with open(self.command_file, 'w') as cmd_file:
-                cmd_file.write('set logging overwrite on\n')
-                cmd_file.write('set logging file ' + self.report_file + '\n')
-                cmd_file.write('set logging on\n')
-                cmd_file.write('set logging redirect on\n')
-                cmd_file.write(old_contents + '\n')
-                cmd_file.write(open(CORE_COMMANDS_FILE, 'r').read())
-                print "core dump report: " + os.path.abspath(self.report_file)
+    def generate_report(self):
+        old_contents = open(self.command_file, 'r').read()
+        with open(self.command_file, 'w') as cmd_file:
+            cmd_file.write('set logging overwrite on\n')
+            cmd_file.write('set logging file ' + self.report_file + '\n')
+            cmd_file.write('set logging on\n')
+            cmd_file.write('set logging redirect on\n')
+            cmd_file.write(old_contents + '\n')
+            cmd_file.write(open(CORE_COMMANDS_FILE, 'r').read())
+            print "core dump report: " + os.path.abspath(self.report_file)
 
 
 class RemoteCommand(GeneratedCommand):

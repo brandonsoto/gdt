@@ -389,6 +389,20 @@ class TestCoreCommand(object):
             assert output_file != gdt.DEFAULT_CORE_REPORT_FILE
             core_cmd.validate_args(MockReportArgs(False, output_file))
 
+    def test_generate_report(self, core_cmd, mock_open, mocker):
+        core_cmd.generate_report()
+        mock_open.assert_has_calls(
+            [mocker.call(core_cmd.command_file, 'r'),
+             mocker.call(core_cmd.command_file, 'w'),
+             mocker.call(gdt.CORE_COMMANDS_FILE, 'r')],
+            any_order=True)
+        mock_open().write.assert_has_calls(
+            [mocker.call('set logging overwrite on\n'),
+             mocker.call('set logging file ' + core_cmd.report_file + '\n'),
+             mocker.call('set logging on\n'),
+             mocker.call('set logging redirect on\n')],
+            any_order=True)
+
 
 class TestCmdFileCommand(object):
     @pytest.fixture
