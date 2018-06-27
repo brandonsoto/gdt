@@ -21,13 +21,14 @@ exclude_lines =
     if __name__ == .__main__.:
     def parse_args
     def close_files
+    def main
+    def run_gdb
     class RequiredFileMissing
     class ConfigFileMissing
     class InvalidConfig
     class TelnetError
     class GDTException
     class InvalidArgs
-    def main
 
 ignore_errors = True
 include = ./

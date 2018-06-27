@@ -400,6 +400,9 @@ class TestCoreCommand(object):
         mocker.patch('os.path.isfile', return_value=True)
         mocker.patch('os.path.abspath', side_effect=lambda path: path)
 
+        solib_mock = mocker.patch('gdt.GeneratedCommand.generate_solib_search_path', return_value="/solib")
+        source_mock = mocker.patch('gdt.GeneratedCommand.generate_source_search_path', return_value="/source")
+
         args = MockArgs()
         cmd = gdt.CoreCommand(args)
         assert cmd.run_gdb
@@ -410,6 +413,11 @@ class TestCoreCommand(object):
         assert 'core' in cmd.opts and cmd.opts['core'].prefix == 'core-file'
         assert cmd.report_file == args.report_out
         # TODO: program name should be checked
+
+        solib_mock.assert_called_once()
+        source_mock.assert_called_once()
+        mock_open.assert_any_call(cmd.command_file, 'w')
+
         return cmd
 
     @pytest.mark.parametrize('generate_report', [False, True])
@@ -519,6 +527,7 @@ class TestRemoteCommand(object):
         source_mock.assert_called_once()
         cmd.telnet.connect.assert_called_once()
         cmd.telnet.get_pid_of.assert_called_once()
+        mock_open.assert_any_call(cmd.command_file, 'w')
 
         return cmd
 
