@@ -255,6 +255,9 @@ class TestTelnetConnection(object):
                 calls=[mocker.call('login: ', telnet.TIMEOUT),
                        mocker.call('Password:', telnet.TIMEOUT),
                        mocker.call(telnet.prompt, telnet.TIMEOUT)])
+            session.write.assert_has_calls(
+                calls=[mocker.call(telnet.target.user + '\n'),
+                       mocker.call(telnet.target.password + '\n')])
         except Exception as err:
             pytest.fail("Unexpected error: " + err.message)
 

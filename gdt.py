@@ -365,7 +365,7 @@ class TelnetConnection:
         self.read_response('Password:')
         self.session.write('{}\n'.format(self.target.password))
         resp = self.read_response(self.prompt)
-        if 'login: ' in resp:
+        if resp[-len(self.prompt):] != self.prompt:
             raise TelnetError('Invalid username or password')
 
     def change_prompt(self, new_prompt):
@@ -409,17 +409,17 @@ def parse_args():
     subparsers = parser.add_subparsers()
 
     base_parser = argparse.ArgumentParser(add_help=False)
-    base_parser.add_argument('-cfg', '--config', default=GDT_CONFIG_FILE, type=str, help='Absolute or relative path to gdt\'s config file')
+    base_parser.add_argument('-cfg', '--config', default=GDT_CONFIG_FILE, help='Absolute or relative path to gdt\'s config file')
 
     generated_parser = argparse.ArgumentParser(add_help=False, parents=[base_parser])
     generated_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
-    generated_parser.add_argument('-r', '--root', type=str, help='Absolute or relative path to root project directory (project_root_path in ' + GDT_CONFIG_FILENAME + ' will be ignored)')
-    generated_parser.add_argument('-s', '--symbols', type=str, help='Absolute or relative path to root symbols directory (symbol_root_path in ' + GDT_CONFIG_FILENAME + ' will be ignored)')
+    generated_parser.add_argument('-r', '--root', help='Absolute or relative path to root project directory (project_root_path in ' + GDT_CONFIG_FILENAME + ' will be ignored)')
+    generated_parser.add_argument('-s', '--symbols', help='Absolute or relative path to root symbols directory (symbol_root_path in ' + GDT_CONFIG_FILENAME + ' will be ignored)')
 
     core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[generated_parser])
     core_parser.add_argument('-c', '--core', required=True, type=argparse.FileType(), help='Absolute or relative path to core file')
     core_parser.add_argument('-rp', '--report', action='store_true', help='Generate a core dump report')
-    core_parser.add_argument('--report-out', type=str, default=DEFAULT_CORE_REPORT_FILE, help='Output file for core dump report (requires -rp option)')
+    core_parser.add_argument('--report-out', default=DEFAULT_CORE_REPORT_FILE, help='Output file for core dump report (requires -rp option)')
     core_parser.set_defaults(func=lambda args: CoreCommand(args))
 
     remote_parser = subparsers.add_parser('remote', help='Use when debugging a remote program', parents=[generated_parser])
