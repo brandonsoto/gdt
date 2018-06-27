@@ -564,6 +564,17 @@ class TestRemoteCommand(object):
         assert remote_cmd.opts['pid'].prefix == 'attach'
         assert remote_cmd.opts['pid'].value == self.PID
 
+    def test_init_pid_with_unknown_process(self, remote_cmd):
+        remote_cmd.program_name = 'unknown_program'
+        assert 'pid' not in remote_cmd.opts
+
+        remote_cmd.telnet.get_pid_of.reset_mock()
+
+        remote_cmd.init_pid()
+
+        remote_cmd.telnet.get_pid_of.assert_called_once_with(remote_cmd.program_name)
+        assert 'pid' not in remote_cmd.opts
+
     @pytest.mark.parametrize('is_qnx_target, prefix', [
         (False, 'target extended-remote'),
         (True, 'target qnx')
