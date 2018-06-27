@@ -579,7 +579,7 @@ class TestRemoteCommand(object):
         (False, 'target extended-remote'),
         (True, 'target qnx')
     ])
-    def test_target(self, remote_cmd, is_qnx_target, prefix):
+    def test_init_target(self, remote_cmd, is_qnx_target, prefix):
         target = gdt.Target(gdt.DEFAULT_IP, gdt.DEFAULT_USER, gdt.DEFAULT_PASSWORD, gdt.DEFAULT_DEBUG_PORT)
         remote_cmd.program_name = self.PROGRAM_NAME
         remote_cmd.is_qnx_target = is_qnx_target
