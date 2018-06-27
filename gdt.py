@@ -306,6 +306,7 @@ class RemoteCommand(GeneratedCommand):
 
         self.init_search_paths()
         self.init_target()
+        self.init_pid()
         self.init_breakpoints(args.breakpoints)
         self.generate_command_file()
 
@@ -315,7 +316,6 @@ class RemoteCommand(GeneratedCommand):
 
     def init_target(self):
         self.add_option('target', GDBCommand('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address()))
-        self.init_pid()
 
     def init_pid(self):
         print 'Getting pid of ' + self.program_name + '...'

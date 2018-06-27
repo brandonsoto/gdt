@@ -15,6 +15,8 @@ class MockArgs:
     report_out = gdt.DEFAULT_CORE_REPORT_FILE
     command_file = '/command_file'
     input = mock.MagicMock()
+    other_target = False
+    breakpoints = ""
 
 
 class MockReportArgs:
@@ -212,9 +214,9 @@ class TestTelnetConnection(object):
 
     @pytest.fixture
     def telnet(self, session):
-        mock_telnet = gdt.TelnetConnection(gdt.Target(gdt.DEFAULT_IP, 'user', 'passwd', gdt.DEFAULT_DEBUG_PORT), gdt.DEFAULT_PROMPT)
-        mock_telnet.session = session
-        return mock_telnet
+        connection = gdt.TelnetConnection(gdt.Target(gdt.DEFAULT_IP, 'user', 'passwd', gdt.DEFAULT_DEBUG_PORT), gdt.DEFAULT_PROMPT)
+        connection.session = session
+        return connection
 
     def test_read_response(self, telnet, session):
         assert telnet.read_response(gdt.DEFAULT_PROMPT) == self.response
@@ -407,6 +409,7 @@ class TestCoreCommand(object):
         assert cmd.excluded_dir_names == json_data["excluded_dir_names"]
         assert 'core' in cmd.opts and cmd.opts['core'].prefix == 'core-file'
         assert cmd.report_file == args.report_out
+        # TODO: program name should be checked
         return cmd
 
     @pytest.mark.parametrize('generate_report', [False, True])
@@ -463,4 +466,108 @@ class TestCmdFileCommand(object):
         assert cmd.json_data == json_data
         assert cmd.gdb_path == os.path.abspath(json_data['gdb_path'])
         assert cmd.command_file == command_file
+
+
+class TestRemoteCommand(object):
+    PID = '425679'
+    PROGRAM_NAME = 'generic_program'
+
+    @pytest.fixture
+    def mock_open(self, mocker):
+        return mocker.patch('__builtin__.open', mocker.mock_open(mock=mocker.MagicMock(return_value='arg', read_data='test_file_data')))
+
+    @pytest.fixture
+    def telnet(self, mocker):
+        telnet = mocker.patch('gdt.TelnetConnection', spec=gdt.TelnetConnection)
+        telnet().get_pid_of.return_value = self.PID + ' generic_program'
+        return telnet
+
+    @pytest.fixture
+    def remote_cmd(self, mocker, mock_open, telnet):
+        json_data = {"gdb_path": "/gdb",
+                     "project_root_path": "/project",
+                     "symbol_root_path" : "/symbol",
+                     "excluded_dir_names": [".vscode", ".git"],
+                     "target_ip": gdt.DEFAULT_IP,
+                     "target_debug_port": gdt.DEFAULT_DEBUG_PORT,
+                     "target_user": gdt.DEFAULT_USER,
+                     "target_password": gdt.DEFAULT_PASSWORD,
+                     "target_prompt": gdt.DEFAULT_PROMPT}
+
+        mocker.patch('json.load', return_value=json_data)
+        mocker.patch('os.path.isdir', return_value=True)
+        mocker.patch('os.path.isfile', return_value=True)
+        mocker.patch('os.path.abspath', side_effect=lambda path: path)
+
+        solib_mock = mocker.patch('gdt.GeneratedCommand.generate_solib_search_path', return_value="/solib")
+        source_mock = mocker.patch('gdt.GeneratedCommand.generate_source_search_path', return_value="/source")
+
+        args = MockArgs()
+        cmd = gdt.RemoteCommand(args)
+        assert cmd.run_gdb
+        assert cmd.json_data == json_data
+        assert cmd.gdb_path == json_data['gdb_path']
+        assert cmd.command_file == gdt.DEFAULT_COMMANDS_FILE
+        assert cmd.is_qnx_target != args.other_target
+        assert cmd.target.user == json_data['target_user']
+        assert cmd.target.password == json_data['target_password']
+        assert cmd.target.ip == json_data['target_ip']
+        assert cmd.target.port == json_data['target_debug_port']
+        assert cmd.source_separator == ';'
+
+        solib_mock.assert_called_once()
+        source_mock.assert_called_once()
+        cmd.telnet.connect.assert_called_once()
+        cmd.telnet.get_pid_of.assert_called_once()
+
+        return cmd
+
+    def test_init_breakpoints_with_file(self, remote_cmd, mocker):
+        assert 'breakpoint' not in remote_cmd.opts
+
+        args = mocker.MagicMock()
+        args.name = '/breakpoint_file'
+
+        remote_cmd.init_breakpoints(args)
+
+        assert 'breakpoint' in remote_cmd.opts
+        assert remote_cmd.opts['breakpoint'].prefix == 'source'
+        assert remote_cmd.opts['breakpoint'].value == '/breakpoint_file'
+
+    def test_init_breakpoints_without_file(self, remote_cmd):
+        assert 'breakpoint' not in remote_cmd.opts
+
+        remote_cmd.init_breakpoints(None)
+
+        assert 'breakpoint' not in remote_cmd.opts
+
+    def test_init_pid_with_running_process(self, remote_cmd):
+        remote_cmd.program_name = self.PROGRAM_NAME
+        assert 'pid' not in remote_cmd.opts
+
+        remote_cmd.telnet.get_pid_of.reset_mock()
+
+        remote_cmd.init_pid()
+
+        remote_cmd.telnet.get_pid_of.assert_called_once_with(remote_cmd.program_name)
+        assert 'pid' in remote_cmd.opts
+        assert remote_cmd.opts['pid'].prefix == 'attach'
+        assert remote_cmd.opts['pid'].value == self.PID
+
+    @pytest.mark.parametrize('is_qnx_target, prefix', [
+        (False, 'target extended-remote'),
+        (True, 'target qnx')
+    ])
+    def test_target(self, remote_cmd, is_qnx_target, prefix):
+        target = gdt.Target(gdt.DEFAULT_IP, gdt.DEFAULT_USER, gdt.DEFAULT_PASSWORD, gdt.DEFAULT_DEBUG_PORT)
+        remote_cmd.program_name = self.PROGRAM_NAME
+        remote_cmd.is_qnx_target = is_qnx_target
+        remote_cmd.target = gdt.Target(gdt.DEFAULT_IP, gdt.DEFAULT_USER, gdt.DEFAULT_PASSWORD, gdt.DEFAULT_DEBUG_PORT)
+        remote_cmd.opts.clear()
+
+        remote_cmd.init_target()
+
+        assert 'target' in remote_cmd.opts
+        assert remote_cmd.opts['target'].prefix == prefix
+        assert remote_cmd.opts['target'].value == target.full_address()
 
