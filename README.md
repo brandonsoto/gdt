@@ -128,7 +128,7 @@ python gdt.py init
 
 1. Build the module of your choice with symbols enabled
 2. Update binary on target and reboot
-3. Set `projection_root_path` in `config.json` to your project's root directory (or specify -r command-line option in step 5)
+3. Set `project_root_path` in `config.json` to your project's root directory (or specify -r command-line option in step 5)
 4. Set `symbols_root_path` in `config.json` to your project's root directory (or specify -s command-line option in step 5)
 5. Run:
 ```code
@@ -137,7 +137,7 @@ python gdt.py remote -p <project_root_dir>/bin/program.full
 
 
 ### Debugging a Core File from a Local Build
-1. Set `projection_root_path` in `config.json` to your project's root directory (or specify -r command-line option in step 4)
+1. Set `project_root_path` in `config.json` to your project's root directory (or specify -r command-line option in step 4)
 2. Set `symbols_root_paths` in `config.json` to your project's root directory (or specify -s command-line option in step 4)
 3. Copy core file from target to host machine
 4. Run:
@@ -148,7 +148,7 @@ python gdt.py core -p <project_root_dir>/Module/bin/program.full -c <project_roo
 ### Generating a core dump report
 gdt allows you to automatically create a core dump report. This is very useful when you need to attach core dump summaries to tickets.
 
-1. Set `projection_root_path` in `config.json` to your project's root directory (or specify -r command-line option in step 4)
+1. Set `project_root_path` in `config.json` to your project's root directory (or specify -r command-line option in step 4)
 2. Set `symbols_root_paths` in `config.json` to your project's root directory (or specify -s command-line option in step 4)
 3. Copy core file from target to host machine
 4. Run:
