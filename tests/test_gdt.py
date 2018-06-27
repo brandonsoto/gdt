@@ -136,13 +136,14 @@ class TestUtilities(object):
 
 
 class TestConfigGenerator(object):
-    def test_generate_config_file(self, mocker):
+    def test_config_generator(self, mocker):
         mock_open = mocker.patch('__builtin__.open')
         mock_dump = mocker.patch('json.dump')
         mocker.patch('gdt.ConfigFileOption', autospec=True)
 
-        gdt.ConfigGenerator()
+        generator = gdt.ConfigGenerator()
 
+        assert not generator.run_gdb
         mock_open.assert_called_once_with(gdt.GDT_CONFIG_FILE, 'w')
         mock_dump.assert_called_once()
 
