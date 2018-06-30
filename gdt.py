@@ -199,14 +199,14 @@ class BaseCommand:
         self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
         self.excluded_dir_names = self.json_data["excluded_dir_names"]
         self.solib_separator = ";"
-        self.validate_config_file()
+        self.validate_config_data()
 
     def check_config_exists(self, config_file):
         if not os.path.isfile(config_file):
             raise ConfigFileMissing(config_file)
         print "Using config file: " + config_file
 
-    def validate_config_file(self):
+    def validate_config_data(self):
         if not os.path.isfile(self.json_data["gdb_path"]):
             raise InvalidConfig("gdb_path", self.json_data["gdb_path"], self.config_file)
         elif not os.path.isdir(self.json_data["project_root_path"]):
