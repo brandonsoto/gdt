@@ -434,7 +434,7 @@ class TestCoreCommand(object):
             assert output_file != gdt.DEFAULT_CORE_REPORT_FILE
             core_cmd.validate_args(MockReportArgs(False, output_file))
 
-    def test_generate_report(self, core_cmd, mock_open, mocker):
+    def test_generate_report_file(self, core_cmd, mock_open, mocker):
         core_cmd.generate_report_file()
         mock_open.assert_has_calls(
             [mocker.call(core_cmd.command_file, 'r'),

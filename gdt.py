@@ -18,7 +18,7 @@ DEFAULT_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, 'commands.txt')
 GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'gdbinit')
 CORE_COMMANDS_FILENAME = 'core_report_commands'
 CORE_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, CORE_COMMANDS_FILENAME)
-DEFAULT_CORE_REPORT_FILE = os.path.join(GDT_CONFIG_DIR, 'coredump_report.log')
+DEFAULT_CORE_REPORT_FILE = os.path.join(os.getcwd(), 'coredump_report.log')
 
 DEFAULT_IP = "192.168.33.42"
 DEFAULT_USER = "vagrant"
