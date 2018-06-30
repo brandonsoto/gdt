@@ -343,7 +343,8 @@ class TestBaseCommand(object):
 
 class TestGeneratedCommand(object):
     @pytest.fixture
-    def cmd(self, mock_open, os_mocks, json_mocks):
+    def cmd(self, mocker, mock_open, os_mocks, json_mocks):
+        check_dir_mock = mocker.patch('gdt.GeneratedCommand.check_dir_exists')
         args = MockArgs()
 
         cmd = gdt.GeneratedCommand(args)
@@ -359,7 +360,29 @@ class TestGeneratedCommand(object):
         assert cmd.command_file == gdt.DEFAULT_COMMANDS_FILE
         assert cmd.program_name == PROGRAM_NAME
 
+        check_dir_mock.assert_has_calls(
+            calls=[mocker.call(cmd.project_path, 'project'),
+                   mocker.call(cmd.symbol_root_path, 'symbol')])
+
         return cmd
+
+    def test_check_required_dir_success(self, cmd, mocker):
+        mocker.stopall()
+        validate_dir_mock = mocker.patch('gdt.validate_dir', return_value=True)
+
+        try:
+            cmd.check_dir_exists(cmd.project_path, 'test_dir')
+            validate_dir_mock.assert_called_once_with(cmd.project_path)
+        except Exception as err:
+            pytest.fail("Unexpected error: " + err.message)
+
+    def test_check_required_dir_fail(self, cmd, mocker):
+        mocker.stopall()
+        validate_dir_mock = mocker.patch('gdt.validate_dir', return_value=False)
+
+        with pytest.raises(IOError):
+            cmd.check_dir_exists(cmd.project_path, 'test_dir')
+            validate_dir_mock.assert_called_once_with(cmd.project_path)
 
     def test_add_option(self, cmd):
         assert 'key' not in cmd.opts
