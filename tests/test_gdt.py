@@ -440,8 +440,8 @@ class TestGeneratedCommand(object):
 
     def test_generate_solib_search_path(self, cmd, tmpdir, mocker):
         mocker.stopall()
-        solib_dir = tmpdir.mkdir('asolib')
-        solib_dir2 = tmpdir.mkdir('zsolib')
+        solib_dir = tmpdir.mkdir('solib_a')
+        solib_dir2 = tmpdir.mkdir('solib_z')
         static_dir = tmpdir.mkdir('static')
         source_dir = tmpdir.mkdir('src')
 
@@ -449,7 +449,7 @@ class TestGeneratedCommand(object):
         solib_dir2.join('shared_lib.so.42').write('')
         static_dir.join('static_lib.a').write('')
         source_dir.join('main.cpp').write('')
-        expected = cmd.source_separator.join([solib_dir.strpath, solib_dir2.strpath])
+        expected = cmd.source_separator.join([solib_dir2.strpath, solib_dir.strpath])
 
         cmd.symbol_root_path = tmpdir.strpath
 
