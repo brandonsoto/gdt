@@ -307,7 +307,6 @@ class RemoteCommand(GeneratedCommand):
         self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"])
         self.source_separator = ";" if self.is_qnx_target else ":"
         self.telnet = TelnetConnection(self.target, self.json_data["target_prompt"])
-        self.telnet.connect()
         self.init(args)
 
     def init(self, args):
@@ -349,6 +348,7 @@ class TelnetConnection:
         self.session = None
         self.prompt = prompt
         self.target = target
+        self.connect()
 
     def __del__(self):
         self.close()

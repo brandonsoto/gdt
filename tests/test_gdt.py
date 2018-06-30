@@ -241,13 +241,17 @@ class TestTelnetConnection(object):
     def session(self, mocker):
         session_mock = mocker.MagicMock()
         session_mock.read_until = mocker.MagicMock(return_value=self.response)
-        session_mock.write = mocker.MagicMock()
         return session_mock
 
     @pytest.fixture
-    def telnet(self, session):
+    def telnet(self, session, mocker):
+        connect_mock = mocker.patch('gdt.TelnetConnection.connect')
+
         connection = gdt.TelnetConnection(gdt.Target(gdt.DEFAULT_IP, 'user', 'passwd', gdt.DEFAULT_DEBUG_PORT), gdt.DEFAULT_PROMPT)
         connection.session = session
+
+        connect_mock.assert_called_once()
+
         return connection
 
     def test_read_response(self, telnet, session):
@@ -280,6 +284,7 @@ class TestTelnetConnection(object):
         assert session.read_until.call_count == 2
 
     def test_connect(self, telnet, session, mocker):
+        mocker.stopall()
         mocker.patch('telnetlib.Telnet', return_value=session)
         session.read_until = mocker.MagicMock(return_value=telnet.prompt)
 
@@ -296,12 +301,14 @@ class TestTelnetConnection(object):
             pytest.fail("Unexpected error: " + err.message)
 
     def test_connect_server_failed(self, telnet, mocker):
+        mocker.stopall()
         mocker.patch('telnetlib.Telnet', side_effect=socket.error)
 
         with pytest.raises(gdt.TelnetError):
             telnet.connect()
 
     def test_connect_bad_credentials(self, telnet, session, mocker):
+        mocker.stopall()
         mocker.patch('telnetlib.Telnet', return_value=session)
         session.read_until = mocker.MagicMock(return_value='login: ')
 
