@@ -440,8 +440,8 @@ class TestGeneratedCommand(object):
 
     def test_generate_solib_search_path(self, cmd, tmpdir, mocker):
         mocker.stopall()
-        solib_dir = tmpdir.mkdir('solib')
-        solib_dir2 = tmpdir.mkdir('solib_other')
+        solib_dir = tmpdir.mkdir('asolib')
+        solib_dir2 = tmpdir.mkdir('zsolib')
         static_dir = tmpdir.mkdir('static')
         source_dir = tmpdir.mkdir('src')
 
