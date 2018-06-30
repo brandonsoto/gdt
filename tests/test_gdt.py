@@ -19,7 +19,20 @@ PROGRAM_MOCK = mock.MagicMock()
 PROGRAM_MOCK.name = '/project/' + PROGRAM_NAME + '.full'
 
 
-@pytest.fixture()
+@pytest.fixture
+def os_mocks(mocker):
+    return mocker.patch.multiple('os.path', isdir=mock.MagicMock(return_value=True),
+                                 isfile=mock.MagicMock(return_value=True),
+                                 abspath=mock.MagicMock(side_effect=lambda path: path))
+
+
+@pytest.fixture
+def json_mocks(mocker):
+    return mocker.patch.multiple('json', load=mock.MagicMock(return_value=JSON_DATA),
+                                 dump=mock.MagicMock())
+
+
+@pytest.fixture
 def mock_open(mocker):
     return mocker.patch('__builtin__.open', mocker.mock_open(mock=mocker.MagicMock(return_value='arg', read_data='test_file_data')))
 
@@ -298,19 +311,17 @@ class TestTelnetConnection(object):
 
 class TestBaseCommand(object):
     @pytest.fixture
-    def basecmd(self, mocker, mock_open):
-        mocker.patch('json.load', return_value=JSON_DATA)
-        mocker.patch('os.path.isdir', return_value=True)
-        mocker.patch('os.path.isfile', return_value=True)
-        mocker.patch('os.path.abspath', side_effect=lambda path: path)
-
+    def basecmd(self, mock_open, os_mocks, json_mocks):
         args = MockArgs()
+
         cmd = gdt.BaseCommand(args)
+
         assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
         assert cmd.config_file == args.config
         assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
         assert cmd.excluded_dir_names == JSON_DATA["excluded_dir_names"]
+
         return cmd
 
     def test_check_config_exists(self, basecmd, mocker):
@@ -332,14 +343,11 @@ class TestBaseCommand(object):
 
 class TestGeneratedCommand(object):
     @pytest.fixture
-    def cmd(self, mocker, mock_open):
-        mocker.patch('json.load', return_value=JSON_DATA)
-        mocker.patch('os.path.isdir', return_value=True)
-        mocker.patch('os.path.isfile', return_value=True)
-        mocker.patch('os.path.abspath', side_effect=lambda path: path)
-
+    def cmd(self, mock_open, os_mocks, json_mocks):
         args = MockArgs()
+
         cmd = gdt.GeneratedCommand(args)
+
         assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
         assert cmd.config_file == args.config
@@ -350,6 +358,7 @@ class TestGeneratedCommand(object):
         assert cmd.project_path == args.root
         assert cmd.command_file == gdt.DEFAULT_COMMANDS_FILE
         assert cmd.program_name == PROGRAM_NAME
+
         return cmd
 
     def test_add_option(self, cmd):
@@ -381,19 +390,12 @@ class TestGeneratedCommand(object):
 
 class TestCoreCommand(object):
     @pytest.fixture
-    def core_cmd(self, mocker, mock_open):
-        mocker.patch('json.load', return_value=JSON_DATA)
-        mocker.patch('os.path.isdir', return_value=True)
-        mocker.patch('os.path.isfile', return_value=True)
-        mocker.patch('os.path.abspath', side_effect=lambda path: path)
+    def core_cmd(self, mocker, mock_open, os_mocks, json_mocks):
         search_path_mock = mocker.patch('gdt.GeneratedCommand.init_search_paths')
         init_mock = mocker.patch('gdt.CoreCommand.init')
-
         args = MockArgs()
-        cmd = gdt.CoreCommand(args)
 
-        search_path_mock.assert_called_once()
-        init_mock.assert_called_once()
+        cmd = gdt.CoreCommand(args)
 
         assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
@@ -403,6 +405,8 @@ class TestCoreCommand(object):
         assert 'core' in cmd.opts and cmd.opts['core'].prefix == 'core-file'
         assert cmd.report_file == args.report_out
         assert cmd.program_name == PROGRAM_NAME
+        search_path_mock.assert_called_once()
+        init_mock.assert_called_once()
 
         return cmd
 
@@ -435,17 +439,13 @@ class TestCoreCommand(object):
 
 
 class TestCmdFileCommand(object):
-    def test_constructor(self, mocker, mock_open):
+    def test_constructor(self, mock_open, os_mocks, json_mocks):
         command_file = '/home/command_file'
-
-        mocker.patch('json.load', return_value=JSON_DATA)
-        mocker.patch('os.path.isdir', return_value=True)
-        mocker.patch('os.path.isfile', return_value=True)
-        mocker.patch('os.path.abspath', side_effect=lambda path: path)
-
         args = MockArgs()
         args.input.name = command_file
+
         cmd = gdt.CmdFileCommand(args)
+
         assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
         assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
@@ -462,14 +462,10 @@ class TestRemoteCommand(object):
         return telnet
 
     @pytest.fixture
-    def remote_cmd(self, mocker, mock_open, telnet):
-        mocker.patch('json.load', return_value=JSON_DATA)
-        mocker.patch('os.path.isdir', return_value=True)
-        mocker.patch('os.path.isfile', return_value=True)
-        mocker.patch('os.path.abspath', side_effect=lambda path: path)
+    def remote_cmd(self, mocker, mock_open, telnet, os_mocks, json_mocks):
         init_mock = mocker.patch('gdt.RemoteCommand.init')
-
         args = MockArgs()
+
         cmd = gdt.RemoteCommand(args)
 
         assert cmd.run_gdb
@@ -490,7 +486,6 @@ class TestRemoteCommand(object):
 
     def test_init_breakpoints_with_file(self, remote_cmd, mocker):
         assert 'breakpoint' not in remote_cmd.opts
-
         args = mocker.MagicMock()
         args.name = '/breakpoint_file'
 
@@ -510,8 +505,6 @@ class TestRemoteCommand(object):
     def test_init_pid_with_running_process(self, remote_cmd):
         assert 'pid' not in remote_cmd.opts
 
-        remote_cmd.telnet.get_pid_of.reset_mock()
-
         remote_cmd.init_pid()
 
         remote_cmd.telnet.get_pid_of.assert_called_once_with(remote_cmd.program_name)
@@ -522,8 +515,6 @@ class TestRemoteCommand(object):
     def test_init_pid_with_unknown_process(self, remote_cmd):
         remote_cmd.program_name = 'unknown_program'
         assert 'pid' not in remote_cmd.opts
-
-        remote_cmd.telnet.get_pid_of.reset_mock()
 
         remote_cmd.init_pid()
 
