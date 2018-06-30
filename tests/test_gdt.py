@@ -438,6 +438,53 @@ class TestGeneratedCommand(object):
         ], any_order=True)
         mock_open().write.assert_called()
 
+    def test_generate_solib_search_path(self, cmd, tmpdir, mocker):
+        mocker.stopall()
+        solib_dir = tmpdir.mkdir('solib')
+        solib_dir2 = tmpdir.mkdir('solib2')
+        static_dir = tmpdir.mkdir('static')
+        source_dir = tmpdir.mkdir('src')
+
+        solib_dir.join('shared_lib.so').write('')
+        solib_dir2.join('shared_lib.so.42').write('')
+        static_dir.join('static_lib.a').write('')
+        source_dir.join('main.cpp').write('')
+        expected = cmd.source_separator.join([solib_dir.strpath, solib_dir2.strpath])
+
+        cmd.symbol_root_path = tmpdir.strpath
+
+        actual = cmd.generate_solib_search_path()
+
+        assert expected == actual
+
+    def test_generate_solib_search_path_empty(self, cmd, tmpdir):
+        cmd.symbol_root_path = tmpdir.strpath
+        assert '' == cmd.generate_solib_search_path()
+
+    def test_generate_source_search_path(self, cmd, tmpdir, mocker):
+        mocker.stopall()
+        solib_dir = tmpdir.mkdir('solib')
+        static_dir = tmpdir.mkdir('static')
+        source_dir = tmpdir.mkdir('src')
+        source_dir2 = tmpdir.mkdir(PROGRAM_NAME)
+
+        solib_dir.join('shared_lib.so').write('')
+        static_dir.join('static_lib.a').write('')
+        source_dir.join('main.cpp').write('')
+        source_dir2.join('utility.h').write('')
+        expected = cmd.source_separator.join([source_dir2.strpath, source_dir.strpath])
+
+        cmd.program_name = PROGRAM_NAME
+        cmd.project_path = tmpdir.strpath
+
+        actual = cmd.generate_source_search_path()
+
+        assert expected == actual
+
+    def test_generate_source_search_path_empty(self, cmd, tmpdir):
+        cmd.symbol_root_path = tmpdir.strpath
+        assert '' == cmd.generate_source_search_path()
+
 
 class TestCoreCommand(object):
     @pytest.fixture
