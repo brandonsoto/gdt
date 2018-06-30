@@ -455,7 +455,6 @@ class TestCoreCommand(object):
         gen_mock.assert_called_once()
         gen_report_mock.assert_called_once()
 
-
     @pytest.mark.parametrize('generate_report_file', [False, True])
     def test_validate_args_success(self, core_cmd, generate_report_file):
         try:
