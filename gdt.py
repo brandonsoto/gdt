@@ -277,13 +277,13 @@ class CoreCommand(GeneratedCommand):
         self.report_file = args.report_out
         self.generate_command_file()
         if args.report:
-            self.generate_report()
+            self.generate_report_file()
 
     def validate_args(self, args):
         if not args.report and args.report_out != DEFAULT_CORE_REPORT_FILE:
             raise InvalidArgs("ERROR: Need to specify --report when using --report-out")
 
-    def generate_report(self):
+    def generate_report_file(self):
         old_contents = open(self.command_file, 'r').read()
         with open(self.command_file, 'w') as cmd_file:
             cmd_file.write('set logging overwrite on\n')

@@ -421,10 +421,10 @@ class TestCoreCommand(object):
 
         return cmd
 
-    @pytest.mark.parametrize('generate_report', [False, True])
-    def test_validate_args_success(self, core_cmd, generate_report):
+    @pytest.mark.parametrize('generate_report_file', [False, True])
+    def test_validate_args_success(self, core_cmd, generate_report_file):
         try:
-            core_cmd.validate_args(MockReportArgs(generate_report, gdt.DEFAULT_CORE_REPORT_FILE))
+            core_cmd.validate_args(MockReportArgs(generate_report_file, gdt.DEFAULT_CORE_REPORT_FILE))
         except Exception as err:
             pytest.fail("Unexpected error: " + err.message)
 
@@ -435,7 +435,7 @@ class TestCoreCommand(object):
             core_cmd.validate_args(MockReportArgs(False, output_file))
 
     def test_generate_report(self, core_cmd, mock_open, mocker):
-        core_cmd.generate_report()
+        core_cmd.generate_report_file()
         mock_open.assert_has_calls(
             [mocker.call(core_cmd.command_file, 'r'),
              mocker.call(core_cmd.command_file, 'w'),
