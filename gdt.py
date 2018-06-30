@@ -306,7 +306,9 @@ class RemoteCommand(GeneratedCommand):
         self.source_separator = ";" if self.is_qnx_target else ":"
         self.telnet = TelnetConnection(self.target, self.json_data["target_prompt"])
         self.telnet.connect()
+        self.init(args)
 
+    def init(self, args):
         self.init_search_paths()
         self.init_target()
         self.init_pid()

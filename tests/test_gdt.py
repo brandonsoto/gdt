@@ -19,6 +19,11 @@ PROGRAM_MOCK = mock.MagicMock()
 PROGRAM_MOCK.name = '/project/' + PROGRAM_NAME + '.full'
 
 
+@pytest.fixture()
+def mock_open(mocker):
+    return mocker.patch('__builtin__.open', mocker.mock_open(mock=mocker.MagicMock(return_value='arg', read_data='test_file_data')))
+
+
 class MockArgs:
     config = "/config.json"
     root = "/root"
@@ -150,8 +155,7 @@ class TestUtilities(object):
 
 
 class TestConfigGenerator(object):
-    def test_config_generator(self, mocker):
-        mock_open = mocker.patch('__builtin__.open')
+    def test_config_generator(self, mocker, mock_open):
         mock_dump = mocker.patch('json.dump')
         mocker.patch('gdt.ConfigFileOption', autospec=True)
 
@@ -294,10 +298,6 @@ class TestTelnetConnection(object):
 
 class TestBaseCommand(object):
     @pytest.fixture
-    def mock_open(self, mocker):
-        return mocker.patch('__builtin__.open', mocker.mock_open(mock=mocker.MagicMock(return_value='arg', read_data='test_file_data')))
-
-    @pytest.fixture
     def basecmd(self, mocker, mock_open):
         mocker.patch('json.load', return_value=JSON_DATA)
         mocker.patch('os.path.isdir', return_value=True)
@@ -331,10 +331,6 @@ class TestBaseCommand(object):
 
 
 class TestGeneratedCommand(object):
-    @pytest.fixture
-    def mock_open(self, mocker):
-        return mocker.patch('__builtin__.open', mocker.mock_open(mock=mocker.MagicMock(return_value='arg', read_data='test_file_data')))
-
     @pytest.fixture
     def cmd(self, mocker, mock_open):
         mocker.patch('json.load', return_value=JSON_DATA)
@@ -384,10 +380,6 @@ class TestGeneratedCommand(object):
 
 
 class TestCoreCommand(object):
-    @pytest.fixture
-    def mock_open(self, mocker):
-        return mocker.patch('__builtin__.open', mocker.mock_open(mock=mocker.MagicMock(return_value='arg', read_data='test_file_data')))
-
     @pytest.fixture
     def core_cmd(self, mocker, mock_open):
         mocker.patch('json.load', return_value=JSON_DATA)
@@ -443,10 +435,6 @@ class TestCoreCommand(object):
 
 
 class TestCmdFileCommand(object):
-    @pytest.fixture
-    def mock_open(self, mocker):
-        return mocker.patch('__builtin__.open', mocker.mock_open(mock=mocker.MagicMock(return_value='arg', read_data='test_file_data')))
-
     def test_constructor(self, mocker, mock_open):
         command_file = '/home/command_file'
 
@@ -466,16 +454,11 @@ class TestCmdFileCommand(object):
 
 class TestRemoteCommand(object):
     PID = '425679'
-    PROGRAM_NAME = 'generic_program'
-
-    @pytest.fixture
-    def mock_open(self, mocker):
-        return mocker.patch('__builtin__.open', mocker.mock_open(mock=mocker.MagicMock(return_value='arg', read_data='test_file_data')))
 
     @pytest.fixture
     def telnet(self, mocker):
         telnet = mocker.patch('gdt.TelnetConnection', spec=gdt.TelnetConnection)
-        telnet().get_pid_of.return_value = self.PID + ' generic_program'
+        telnet().get_pid_of.return_value = self.PID + ' ' + PROGRAM_NAME
         return telnet
 
     @pytest.fixture
@@ -484,12 +467,11 @@ class TestRemoteCommand(object):
         mocker.patch('os.path.isdir', return_value=True)
         mocker.patch('os.path.isfile', return_value=True)
         mocker.patch('os.path.abspath', side_effect=lambda path: path)
-
-        solib_mock = mocker.patch('gdt.GeneratedCommand.generate_solib_search_path', return_value="/solib")
-        source_mock = mocker.patch('gdt.GeneratedCommand.generate_source_search_path', return_value="/source")
+        init_mock = mocker.patch('gdt.RemoteCommand.init')
 
         args = MockArgs()
         cmd = gdt.RemoteCommand(args)
+
         assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
         assert cmd.gdb_path == JSON_DATA['gdb_path']
@@ -502,11 +484,7 @@ class TestRemoteCommand(object):
         assert cmd.source_separator == ';'
         assert cmd.program_name == PROGRAM_NAME
 
-        solib_mock.assert_called_once()
-        source_mock.assert_called_once()
-        cmd.telnet.connect.assert_called_once()
-        cmd.telnet.get_pid_of.assert_called_once()
-        mock_open.assert_any_call(cmd.command_file, 'w')
+        init_mock.assert_called_once()
 
         return cmd
 
@@ -530,7 +508,6 @@ class TestRemoteCommand(object):
         assert 'breakpoint' not in remote_cmd.opts
 
     def test_init_pid_with_running_process(self, remote_cmd):
-        remote_cmd.program_name = self.PROGRAM_NAME
         assert 'pid' not in remote_cmd.opts
 
         remote_cmd.telnet.get_pid_of.reset_mock()
@@ -559,7 +536,7 @@ class TestRemoteCommand(object):
     ])
     def test_init_target(self, remote_cmd, is_qnx_target, prefix):
         target = gdt.Target(gdt.DEFAULT_IP, gdt.DEFAULT_USER, gdt.DEFAULT_PASSWORD, gdt.DEFAULT_DEBUG_PORT)
-        remote_cmd.program_name = self.PROGRAM_NAME
+        remote_cmd.program_name = PROGRAM_NAME
         remote_cmd.is_qnx_target = is_qnx_target
         remote_cmd.target = gdt.Target(gdt.DEFAULT_IP, gdt.DEFAULT_USER, gdt.DEFAULT_PASSWORD, gdt.DEFAULT_DEBUG_PORT)
         remote_cmd.opts.clear()
