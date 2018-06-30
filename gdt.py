@@ -228,10 +228,12 @@ class GeneratedCommand(BaseCommand):
         self.source_separator = ";"
         self.opts = OrderedDict([("program", GDBCommand('file', get_str_repr(os.path.abspath(args.program.name))))])
         self.program_name = extract_filename(self.opts['program'].value)
-        if not validate_dir(self.project_path):
-            raise IOError("ERROR: project root path does not exist or is not a directory: " + self.project_path)
-        if not validate_dir(self.symbol_root_path):
-            raise IOError("ERROR: symbol root path does not exist or is not a directory: " + self.symbol_root_path)
+        self.check_required_dir(self.project_path, 'project root')
+        self.check_required_dir(self.symbol_root_path, 'sybol root')
+
+    def check_required_dir(self, directory, name):
+        if not validate_dir(directory):
+            raise IOError("ERROR: " + name + " path does not exist or is not a directory: " + directory)
 
     def init_search_paths(self):
         print "Generating search paths..."

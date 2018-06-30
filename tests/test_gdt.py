@@ -410,6 +410,29 @@ class TestCoreCommand(object):
 
         return cmd
 
+    def test_init_with_no_report(self, mocker, core_cmd):
+        mocker.stopall()
+
+        gen_mock = mocker.patch('gdt.GeneratedCommand.generate_command_file')
+        gen_report_mock = mocker.patch('gdt.CoreCommand.generate_report_file')
+
+        core_cmd.init(MockReportArgs(False, ""))
+
+        gen_mock.assert_called_once()
+        gen_report_mock.assert_not_called()
+
+    def test_init_with_report(self, mocker, core_cmd):
+        mocker.stopall()
+
+        gen_mock = mocker.patch('gdt.GeneratedCommand.generate_command_file')
+        gen_report_mock = mocker.patch('gdt.CoreCommand.generate_report_file')
+
+        core_cmd.init(MockReportArgs(True, ""))
+
+        gen_mock.assert_called_once()
+        gen_report_mock.assert_called_once()
+
+
     @pytest.mark.parametrize('generate_report_file', [False, True])
     def test_validate_args_success(self, core_cmd, generate_report_file):
         try:
@@ -483,6 +506,26 @@ class TestRemoteCommand(object):
         init_mock.assert_called_once()
 
         return cmd
+
+    def test_init(self, remote_cmd, mocker):
+        mocker.stopall()
+
+        search_mock = mocker.patch('gdt.GeneratedCommand.init_search_paths')
+        gen_mock = mocker.patch('gdt.GeneratedCommand.generate_command_file')
+        target_mock = mocker.patch('gdt.RemoteCommand.init_target')
+        pid_mock = mocker.patch('gdt.RemoteCommand.init_pid')
+        breakpoint_mock = mocker.patch('gdt.RemoteCommand.init_breakpoints')
+
+        args = mock.sentinel
+        args.breakpoints = 'breakpoints'
+
+        remote_cmd.init(args)
+
+        search_mock.assert_called_once()
+        target_mock.assert_called_once()
+        pid_mock.assert_called_once()
+        breakpoint_mock.assert_called_once_with(args.breakpoints)
+        gen_mock.assert_called_once()
 
     def test_init_breakpoints_with_file(self, remote_cmd, mocker):
         assert 'breakpoint' not in remote_cmd.opts
