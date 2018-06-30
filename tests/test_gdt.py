@@ -325,11 +325,13 @@ class TestTelnetConnection(object):
             telnet.connect()
 
     def test_close_with_active_session(self, telnet):
+        telnet.session.reset_mock()
         assert telnet.session is not None
         telnet.close()
         telnet.session.close.assert_called_once()
 
     def test_close_with_no_session(self, telnet, session):
+        telnet.session.reset_mock()
         telnet.session = None
         telnet.close()
         session.close.assert_not_called()
