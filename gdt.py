@@ -163,7 +163,7 @@ class ConfigFileOption:
         self.value = value
 
 
-class ConfigGenerator:
+class ConfigFileGenerator:
     def __init__(self, args=None):
         self.run_gdb = False
         self.generate_config_file()
@@ -432,7 +432,7 @@ def parse_args():
     cmd_parser.set_defaults(func=lambda args: CmdFileCommand(args))
 
     init_parser = subparsers.add_parser('init', help='Use to initialize ' + GDT_CONFIG_FILENAME)
-    init_parser.set_defaults(func=lambda args: ConfigGenerator(args))
+    init_parser.set_defaults(func=lambda args: ConfigFileGenerator(args))
 
     args = parser.parse_args()
     close_files(args)

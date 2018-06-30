@@ -141,7 +141,7 @@ class TestConfigGenerator(object):
         mock_dump = mocker.patch('json.dump')
         mocker.patch('gdt.ConfigFileOption', autospec=True)
 
-        generator = gdt.ConfigGenerator()
+        generator = gdt.ConfigFileGenerator()
 
         assert not generator.run_gdb
         mock_open.assert_called_once_with(gdt.GDT_CONFIG_FILE, 'w')
