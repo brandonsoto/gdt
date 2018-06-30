@@ -5,11 +5,25 @@ import pytest
 import socket
 
 
+JSON_DATA = {"gdb_path": "/gdb",
+             "project_root_path": "/project",
+             "symbol_root_path" : "/symbol",
+             "excluded_dir_names": [".vscode", ".git"],
+             "target_ip": gdt.DEFAULT_IP,
+             "target_debug_port": gdt.DEFAULT_DEBUG_PORT,
+             "target_user": gdt.DEFAULT_USER,
+             "target_password": gdt.DEFAULT_PASSWORD,
+             "target_prompt": gdt.DEFAULT_PROMPT}
+PROGRAM_NAME = 'test_program'
+PROGRAM_MOCK = mock.MagicMock()
+PROGRAM_MOCK.name = '/project/' + PROGRAM_NAME + '.full'
+
+
 class MockArgs:
     config = "/config.json"
     root = "/root"
     symbols = "/symbols"
-    program = mock.MagicMock()
+    program = PROGRAM_MOCK
     core = mock.MagicMock()
     report = False
     report_out = gdt.DEFAULT_CORE_REPORT_FILE
@@ -285,14 +299,7 @@ class TestBaseCommand(object):
 
     @pytest.fixture
     def basecmd(self, mocker, mock_open):
-        json_data = {"gdb_path": "/gdb",
-                     "project_root_path": "/project",
-                     "symbol_root_path" : "/symbol",
-                     "excluded_dir_names": [".vscode", ".git"],
-                     "target_ip": gdt.DEFAULT_IP,
-                     "target_debug_port": gdt.DEFAULT_DEBUG_PORT}
-
-        mocker.patch('json.load', return_value=json_data)
+        mocker.patch('json.load', return_value=JSON_DATA)
         mocker.patch('os.path.isdir', return_value=True)
         mocker.patch('os.path.isfile', return_value=True)
         mocker.patch('os.path.abspath', side_effect=lambda path: path)
@@ -300,10 +307,10 @@ class TestBaseCommand(object):
         args = MockArgs()
         cmd = gdt.BaseCommand(args)
         assert cmd.run_gdb
-        assert cmd.json_data == json_data
+        assert cmd.json_data == JSON_DATA
         assert cmd.config_file == args.config
-        assert cmd.gdb_path == os.path.abspath(json_data['gdb_path'])
-        assert cmd.excluded_dir_names == json_data["excluded_dir_names"]
+        assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
+        assert cmd.excluded_dir_names == JSON_DATA["excluded_dir_names"]
         return cmd
 
     def test_check_config_exists(self, basecmd, mocker):
@@ -330,14 +337,7 @@ class TestGeneratedCommand(object):
 
     @pytest.fixture
     def cmd(self, mocker, mock_open):
-        json_data = {"gdb_path": "/gdb",
-                     "project_root_path": "/project",
-                     "symbol_root_path" : "/symbol",
-                     "excluded_dir_names": [".vscode", ".git"],
-                     "target_ip": gdt.DEFAULT_IP,
-                     "target_debug_port": gdt.DEFAULT_DEBUG_PORT}
-
-        mocker.patch('json.load', return_value=json_data)
+        mocker.patch('json.load', return_value=JSON_DATA)
         mocker.patch('os.path.isdir', return_value=True)
         mocker.patch('os.path.isfile', return_value=True)
         mocker.patch('os.path.abspath', side_effect=lambda path: path)
@@ -345,14 +345,15 @@ class TestGeneratedCommand(object):
         args = MockArgs()
         cmd = gdt.GeneratedCommand(args)
         assert cmd.run_gdb
-        assert cmd.json_data == json_data
+        assert cmd.json_data == JSON_DATA
         assert cmd.config_file == args.config
-        assert cmd.gdb_path == os.path.abspath(json_data['gdb_path'])
-        assert cmd.excluded_dir_names == json_data["excluded_dir_names"]
+        assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
+        assert cmd.excluded_dir_names == JSON_DATA["excluded_dir_names"]
         assert 'program' in cmd.opts and cmd.opts['program'].prefix == 'file'
         assert cmd.symbol_root_path == args.symbols
         assert cmd.project_path == args.root
         assert cmd.command_file == gdt.DEFAULT_COMMANDS_FILE
+        assert cmd.program_name == PROGRAM_NAME
         return cmd
 
     def test_add_option(self, cmd):
@@ -389,35 +390,27 @@ class TestCoreCommand(object):
 
     @pytest.fixture
     def core_cmd(self, mocker, mock_open):
-        json_data = {"gdb_path": "/gdb",
-                     "project_root_path": "/project",
-                     "symbol_root_path" : "/symbol",
-                     "excluded_dir_names": [".vscode", ".git"],
-                     "target_ip": gdt.DEFAULT_IP,
-                     "target_debug_port": gdt.DEFAULT_DEBUG_PORT}
-
-        mocker.patch('json.load', return_value=json_data)
+        mocker.patch('json.load', return_value=JSON_DATA)
         mocker.patch('os.path.isdir', return_value=True)
         mocker.patch('os.path.isfile', return_value=True)
         mocker.patch('os.path.abspath', side_effect=lambda path: path)
-
-        solib_mock = mocker.patch('gdt.GeneratedCommand.generate_solib_search_path', return_value="/solib")
-        source_mock = mocker.patch('gdt.GeneratedCommand.generate_source_search_path', return_value="/source")
+        search_path_mock = mocker.patch('gdt.GeneratedCommand.init_search_paths')
+        init_mock = mocker.patch('gdt.CoreCommand.init')
 
         args = MockArgs()
         cmd = gdt.CoreCommand(args)
+
+        search_path_mock.assert_called_once()
+        init_mock.assert_called_once()
+
         assert cmd.run_gdb
-        assert cmd.json_data == json_data
+        assert cmd.json_data == JSON_DATA
         assert cmd.config_file == args.config
-        assert cmd.gdb_path == os.path.abspath(json_data['gdb_path'])
-        assert cmd.excluded_dir_names == json_data["excluded_dir_names"]
+        assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
+        assert cmd.excluded_dir_names == JSON_DATA["excluded_dir_names"]
         assert 'core' in cmd.opts and cmd.opts['core'].prefix == 'core-file'
         assert cmd.report_file == args.report_out
-        # TODO: program name should be checked
-
-        solib_mock.assert_called_once()
-        source_mock.assert_called_once()
-        mock_open.assert_any_call(cmd.command_file, 'w')
+        assert cmd.program_name == PROGRAM_NAME
 
         return cmd
 
@@ -456,14 +449,8 @@ class TestCmdFileCommand(object):
 
     def test_constructor(self, mocker, mock_open):
         command_file = '/home/command_file'
-        json_data = {"gdb_path": "/gdb",
-                     "project_root_path": "/project",
-                     "symbol_root_path" : "/symbol",
-                     "excluded_dir_names": [".vscode", ".git"],
-                     "target_ip": gdt.DEFAULT_IP,
-                     "target_debug_port": gdt.DEFAULT_DEBUG_PORT}
 
-        mocker.patch('json.load', return_value=json_data)
+        mocker.patch('json.load', return_value=JSON_DATA)
         mocker.patch('os.path.isdir', return_value=True)
         mocker.patch('os.path.isfile', return_value=True)
         mocker.patch('os.path.abspath', side_effect=lambda path: path)
@@ -472,8 +459,8 @@ class TestCmdFileCommand(object):
         args.input.name = command_file
         cmd = gdt.CmdFileCommand(args)
         assert cmd.run_gdb
-        assert cmd.json_data == json_data
-        assert cmd.gdb_path == os.path.abspath(json_data['gdb_path'])
+        assert cmd.json_data == JSON_DATA
+        assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
         assert cmd.command_file == command_file
 
 
@@ -493,17 +480,7 @@ class TestRemoteCommand(object):
 
     @pytest.fixture
     def remote_cmd(self, mocker, mock_open, telnet):
-        json_data = {"gdb_path": "/gdb",
-                     "project_root_path": "/project",
-                     "symbol_root_path" : "/symbol",
-                     "excluded_dir_names": [".vscode", ".git"],
-                     "target_ip": gdt.DEFAULT_IP,
-                     "target_debug_port": gdt.DEFAULT_DEBUG_PORT,
-                     "target_user": gdt.DEFAULT_USER,
-                     "target_password": gdt.DEFAULT_PASSWORD,
-                     "target_prompt": gdt.DEFAULT_PROMPT}
-
-        mocker.patch('json.load', return_value=json_data)
+        mocker.patch('json.load', return_value=JSON_DATA)
         mocker.patch('os.path.isdir', return_value=True)
         mocker.patch('os.path.isfile', return_value=True)
         mocker.patch('os.path.abspath', side_effect=lambda path: path)
@@ -514,15 +491,16 @@ class TestRemoteCommand(object):
         args = MockArgs()
         cmd = gdt.RemoteCommand(args)
         assert cmd.run_gdb
-        assert cmd.json_data == json_data
-        assert cmd.gdb_path == json_data['gdb_path']
+        assert cmd.json_data == JSON_DATA
+        assert cmd.gdb_path == JSON_DATA['gdb_path']
         assert cmd.command_file == gdt.DEFAULT_COMMANDS_FILE
         assert cmd.is_qnx_target != args.other_target
-        assert cmd.target.user == json_data['target_user']
-        assert cmd.target.password == json_data['target_password']
-        assert cmd.target.ip == json_data['target_ip']
-        assert cmd.target.port == json_data['target_debug_port']
+        assert cmd.target.user == JSON_DATA['target_user']
+        assert cmd.target.password == JSON_DATA['target_password']
+        assert cmd.target.ip == JSON_DATA['target_ip']
+        assert cmd.target.port == JSON_DATA['target_debug_port']
         assert cmd.source_separator == ';'
+        assert cmd.program_name == PROGRAM_NAME
 
         solib_mock.assert_called_once()
         source_mock.assert_called_once()

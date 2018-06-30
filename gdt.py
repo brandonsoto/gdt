@@ -275,6 +275,9 @@ class CoreCommand(GeneratedCommand):
         self.init_search_paths()
         self.add_option('core', GDBCommand('core-file', get_str_repr(os.path.abspath(args.core.name))))
         self.report_file = args.report_out
+        self.init(args)
+
+    def init(self, args):
         self.generate_command_file()
         if args.report:
             self.generate_report_file()
