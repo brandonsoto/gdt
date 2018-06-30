@@ -246,11 +246,20 @@ class TestTelnetConnection(object):
     @pytest.fixture
     def telnet(self, session, mocker):
         connect_mock = mocker.patch('gdt.TelnetConnection.connect')
+        target = gdt.Target(gdt.DEFAULT_IP, 'user', 'passwd', gdt.DEFAULT_DEBUG_PORT)
+        port = gdt.DEFAULT_PROMPT
 
-        connection = gdt.TelnetConnection(gdt.Target(gdt.DEFAULT_IP, 'user', 'passwd', gdt.DEFAULT_DEBUG_PORT), gdt.DEFAULT_PROMPT)
-        connection.session = session
+        connection = gdt.TelnetConnection(target, port)
 
+        assert connection.prompt == gdt.DEFAULT_PROMPT
+        assert connection.session is None
+        assert target.ip == connection.target.ip
+        assert target.user == connection.target.user
+        assert target.password == connection.target.password
+        assert target.port == connection.target.port
         connect_mock.assert_called_once()
+
+        connection.session = session
 
         return connection
 
@@ -314,6 +323,16 @@ class TestTelnetConnection(object):
 
         with pytest.raises(gdt.TelnetError):
             telnet.connect()
+
+    def test_close_with_active_session(self, telnet):
+        assert telnet.session is not None
+        telnet.close()
+        telnet.session.close.assert_called_once()
+
+    def test_close_with_no_session(self, telnet, session):
+        telnet.session = None
+        telnet.close()
+        session.close.assert_not_called()
 
 
 class TestBaseCommand(object):
