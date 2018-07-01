@@ -13,7 +13,7 @@ install:
 
 script:
   - export PYTHONPATH=$PWD
-  - python -m pytest --cov=./ --cov-config=.coveragerc --cov-report=xml --cov-report=term -v --color=yes
+  - python -m pytest --cov=./ --cov-config=.coveragerc --cov-report=xml --cov-report=term -vv --color=yes
 
 after_script:
   - ./cc-test-reporter format-coverage --input-type coverage.py -p $PWD

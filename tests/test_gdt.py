@@ -443,13 +443,19 @@ class TestGeneratedCommand(object):
         solib_dir = tmpdir.mkdir('solib_a')
         solib_dir2 = tmpdir.mkdir('solib_z')
         static_dir = tmpdir.mkdir('static')
-        source_dir = tmpdir.mkdir('src')
+        src_dir = tmpdir.mkdir('src')
+        excluded_dir = tmpdir.mkdir('.git')
+        nested_solib_dir = solib_dir.mkdir('more_solib')
+        nested_solib_dir2 = src_dir.mkdir('libs')
 
         solib_dir.join('shared_lib.so').write('')
         solib_dir2.join('shared_lib.so.42').write('')
         static_dir.join('static_lib.a').write('')
-        source_dir.join('main.cpp').write('')
-        expected = cmd.source_separator.join([solib_dir2.strpath, solib_dir.strpath])
+        src_dir.join('main.cpp').write('')
+        excluded_dir.join('shared_lib_2.so').write('')
+        nested_solib_dir.join('test_lib.so').write('')
+        nested_solib_dir2.join('test.so.77').write('')
+        expected = cmd.source_separator.join([nested_solib_dir2.strpath, solib_dir2.strpath, nested_solib_dir.strpath, solib_dir.strpath])
 
         cmd.symbol_root_path = tmpdir.strpath
 
@@ -465,14 +471,21 @@ class TestGeneratedCommand(object):
         mocker.stopall()
         solib_dir = tmpdir.mkdir('solib')
         static_dir = tmpdir.mkdir('static')
-        source_dir = tmpdir.mkdir('src')
+        src_dir = tmpdir.mkdir('src')
+        excluded_dir = tmpdir.mkdir('.git')
         source_dir2 = tmpdir.mkdir(PROGRAM_NAME)
+        nested_src_dir = src_dir.mkdir('nested')
+        nested_src_dir_2 = solib_dir.mkdir('src')
 
         solib_dir.join('shared_lib.so').write('')
         static_dir.join('static_lib.a').write('')
-        source_dir.join('main.cpp').write('')
+        src_dir.join('main.cpp').write('')
         source_dir2.join('utility.h').write('')
-        expected = cmd.source_separator.join([source_dir2.strpath, source_dir.strpath])
+        excluded_dir.join('excluded.cpp').write('')
+        nested_src_dir.join('other.c').write('')
+        nested_src_dir_2.join('other.cpp').write('')
+
+        expected = cmd.source_separator.join([source_dir2.strpath, nested_src_dir_2.strpath, src_dir.strpath, nested_src_dir.strpath])
 
         cmd.program_name = PROGRAM_NAME
         cmd.project_path = tmpdir.strpath
