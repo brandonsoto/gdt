@@ -277,7 +277,7 @@ class GeneratedCommand(BaseCommand):
             dirs.sort()
             if any(is_shared_library(f) for f in files):
                 search_path.insert(0, get_str_repr(os.path.abspath(root)))
-        return self.solib_separator.join(search_path)
+        return search_path
 
     def generate_source_search_path(self):
         search_path = []
@@ -289,7 +289,7 @@ class GeneratedCommand(BaseCommand):
                 search_path.insert(0, get_str_repr(os.path.abspath(root)))
             elif has_cpp_file:
                 search_path.append(get_str_repr(os.path.abspath(root)))
-        return self.source_separator.join(search_path)
+        return search_path
 
     def generate_command_file(self):
         with open(self.command_file, 'w') as cmd_file:
