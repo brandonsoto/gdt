@@ -420,7 +420,14 @@ class TestGeneratedCommand(object):
         assert 'key' in cmd.opts
         assert cmd.opts['key'] == 'option'
 
-    def test_init_search_paths(self, cmd):
+    def test_init_search_paths_with_same_dirs(self, cmd, mocker):
+        search_paths_mock = mocker.patch('gdt.GeneratedCommand.generate_search_paths', return_value=(['/solib1', '/solib2'], ['/src1', '/src2']))
+        solib_path_mock = mocker.patch('gdt.GeneratedCommand.generate_source_search_path', return_value=[])
+        source_path_mock = mocker.patch('gdt.GeneratedCommand.generate_solib_search_path', return_value=[])
+        cmd.symbol_root_path = "/root"
+        cmd.project_path = "/root"
+
+        assert cmd.symbol_root_path == cmd.project_path
         assert 'solib_path' not in cmd.opts
         assert 'source_path' not in cmd.opts
 
@@ -428,6 +435,30 @@ class TestGeneratedCommand(object):
 
         assert 'solib_path' in cmd.opts
         assert 'source_path' in cmd.opts
+        assert cmd.opts['solib_path'].prefix == 'set solib-search-path' and cmd.opts['solib_path'].value == '/solib1;/solib2'
+        assert cmd.opts['source_path'].prefix == 'dir' and cmd.opts['source_path'].value == '/src1;/src2'
+        solib_path_mock.assert_not_called()
+        source_path_mock.assert_not_called()
+        search_paths_mock.assert_called_once()
+
+    def test_init_search_paths_with_different_dirs(self, cmd, mocker):
+        search_paths_mock = mocker.patch('gdt.GeneratedCommand.generate_search_paths', return_value=())
+        solib_path_mock = mocker.patch('gdt.GeneratedCommand.generate_source_search_path', return_value=['/src1', '/src2'])
+        source_path_mock = mocker.patch('gdt.GeneratedCommand.generate_solib_search_path', return_value=['/solib1', '/solib2'])
+
+        assert cmd.symbol_root_path != cmd.project_path
+        assert 'solib_path' not in cmd.opts
+        assert 'source_path' not in cmd.opts
+
+        cmd.init_search_paths()
+
+        assert 'solib_path' in cmd.opts
+        assert 'source_path' in cmd.opts
+        assert cmd.opts['solib_path'].prefix == 'set solib-search-path' and cmd.opts['solib_path'].value == '/solib1;/solib2'
+        assert cmd.opts['source_path'].prefix == 'dir' and cmd.opts['source_path'].value == '/src1;/src2'
+        solib_path_mock.assert_called_once()
+        source_path_mock.assert_called_once()
+        search_paths_mock.assert_not_called()
 
     def test_generate_command_file(self, cmd, mocker, mock_open):
         cmd.generate_command_file()
@@ -455,7 +486,8 @@ class TestGeneratedCommand(object):
         excluded_dir.join('shared_lib_2.so').write('')
         nested_solib_dir.join('test_lib.so').write('')
         nested_solib_dir2.join('test.so.77').write('')
-        expected = cmd.source_separator.join([nested_solib_dir2.strpath, solib_dir2.strpath, nested_solib_dir.strpath, solib_dir.strpath])
+
+        expected = [nested_solib_dir2.strpath, solib_dir2.strpath, nested_solib_dir.strpath, solib_dir.strpath]
 
         cmd.symbol_root_path = tmpdir.strpath
 
@@ -465,7 +497,7 @@ class TestGeneratedCommand(object):
 
     def test_generate_solib_search_path_empty(self, cmd, tmpdir):
         cmd.symbol_root_path = tmpdir.strpath
-        assert '' == cmd.generate_solib_search_path()
+        assert [] == cmd.generate_solib_search_path()
 
     def test_generate_source_search_path(self, cmd, tmpdir, mocker):
         mocker.stopall()
@@ -485,7 +517,7 @@ class TestGeneratedCommand(object):
         nested_src_dir.join('other.c').write('')
         nested_src_dir_2.join('other.cpp').write('')
 
-        expected = cmd.source_separator.join([source_dir2.strpath, nested_src_dir_2.strpath, src_dir.strpath, nested_src_dir.strpath])
+        expected = [source_dir2.strpath, nested_src_dir_2.strpath, src_dir.strpath, nested_src_dir.strpath]
 
         cmd.program_name = PROGRAM_NAME
         cmd.project_path = tmpdir.strpath
@@ -496,7 +528,7 @@ class TestGeneratedCommand(object):
 
     def test_generate_source_search_path_empty(self, cmd, tmpdir):
         cmd.symbol_root_path = tmpdir.strpath
-        assert '' == cmd.generate_source_search_path()
+        assert [] == cmd.generate_source_search_path()
 
 
 class TestCoreCommand(object):
@@ -690,4 +722,3 @@ class TestRemoteCommand(object):
         assert 'target' in remote_cmd.opts
         assert remote_cmd.opts['target'].prefix == prefix
         assert remote_cmd.opts['target'].value == target.full_address()
-
