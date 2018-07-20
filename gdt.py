@@ -237,8 +237,38 @@ class GeneratedCommand(BaseCommand):
 
     def init_search_paths(self):
         print "Generating search paths..."
-        self.add_option('solib_path', GDBCommand('set solib-search-path', self.generate_solib_search_path()))
-        self.add_option('source_path', GDBCommand('dir', self.generate_source_search_path()))
+        solib_search_path = []
+        source_search_path = []
+
+        if os.path.abspath(self.symbol_root_path) == os.path.abspath(self.project_path):
+            solib_search_path, source_search_path = self.generate_search_paths()
+        else:
+            solib_search_path = self.generate_solib_search_path()
+            source_search_path = self.generate_source_search_path()
+
+        self.add_option('solib_path', GDBCommand('set solib-search-path', self.solib_separator.join(solib_search_path)))
+        self.add_option('source_path', GDBCommand('dir', self.source_separator.join(source_search_path)))
+
+    def generate_search_paths(self):
+        solib_search_path = []
+        source_search_path = []
+
+        for root, dirs, files in os.walk(self.project_path, topdown=True):
+            dirs[:] = [d for d in dirs if d not in self.excluded_dir_names]
+            dirs.sort()
+
+            has_cpp_file = any(is_cpp_file(f) for f in files)
+            has_shared_lib = any(is_shared_library(f) for f in files)
+
+            if has_shared_lib:
+                solib_search_path.insert(0, get_str_repr(os.path.abspath(root)))
+
+            if has_cpp_file and self.program_name in root:
+                source_search_path.insert(0, get_str_repr(os.path.abspath(root)))
+            elif has_cpp_file:
+                source_search_path.append(get_str_repr(os.path.abspath(root)))
+
+        return (solib_search_path, source_search_path)
 
     def generate_solib_search_path(self):
         search_path = []
