@@ -33,8 +33,8 @@ SHARED_LIB_REGEX = re.compile(r'\.so(\.\d+)?$')
 CPP_REGEX = re.compile(r'\.h$|\.hpp$|\.c$|\.cc$|\.cpp$')
 
 
-def get_str_repr(string):
-    return repr(str(string))[1:-1]
+def get_str_repr(path_string):
+    return repr(os.path.abspath(path_string))[1:-1]
 
 
 def verify_required_files_exist():
@@ -226,7 +226,7 @@ class GeneratedCommand(BaseCommand):
         self.project_path = os.path.abspath(args.root) if args.root else os.path.abspath(self.json_data["project_root_path"])
         self.symbol_root_path = os.path.abspath(args.symbols) if args.symbols else os.path.abspath(self.json_data["symbol_root_path"])
         self.source_separator = ";"
-        self.opts = OrderedDict([("program", GDBCommand('file', get_str_repr(os.path.abspath(args.program.name))))])
+        self.opts = OrderedDict([("program", GDBCommand('file', get_str_repr(args.program.name)))])
         self.program_name = extract_filename(self.opts['program'].value)
         self.check_dir_exists(self.project_path, 'project')
         self.check_dir_exists(self.symbol_root_path, 'symbol')
@@ -264,12 +264,12 @@ class GeneratedCommand(BaseCommand):
             has_shared_lib = any(is_shared_library(f) for f in files)
 
             if has_shared_lib:
-                solib_search_path.insert(0, get_str_repr(os.path.abspath(root)))
+                solib_search_path.insert(0, get_str_repr(root))
 
             if has_cpp_file and self.program_name in root:
-                source_search_path.insert(0, get_str_repr(os.path.abspath(root)))
+                source_search_path.insert(0, get_str_repr(root))
             elif has_cpp_file:
-                source_search_path.append(get_str_repr(os.path.abspath(root)))
+                source_search_path.append(get_str_repr(root))
 
         return (solib_search_path, source_search_path)
 
@@ -279,7 +279,7 @@ class GeneratedCommand(BaseCommand):
             dirs[:] = self.get_search_dirs(dirs)
             dirs.sort()
             if any(is_shared_library(f) for f in files):
-                search_path.insert(0, get_str_repr(os.path.abspath(root)))
+                search_path.insert(0, get_str_repr(root))
         return search_path
 
     def generate_source_search_path(self):
@@ -289,9 +289,9 @@ class GeneratedCommand(BaseCommand):
             dirs.sort()
             has_cpp_file = any(is_cpp_file(f) for f in files)
             if has_cpp_file and self.program_name in root:
-                search_path.insert(0, get_str_repr(os.path.abspath(root)))
+                search_path.insert(0, get_str_repr(root))
             elif has_cpp_file:
-                search_path.append(get_str_repr(os.path.abspath(root)))
+                search_path.append(get_str_repr(root))
         return search_path
 
     def generate_command_file(self):
@@ -310,7 +310,7 @@ class CoreCommand(GeneratedCommand):
         self.validate_args(args)
         GeneratedCommand.__init__(self, args)
         self.init_search_paths()
-        self.add_option('core', GDBCommand('core-file', get_str_repr(os.path.abspath(args.core.name))))
+        self.add_option('core', GDBCommand('core-file', get_str_repr(args.core.name)))
         self.report_file = args.report_out
         self.init(args)
 
@@ -353,7 +353,7 @@ class RemoteCommand(GeneratedCommand):
 
     def init_breakpoints(self, breakpoint_file):
         if breakpoint_file:
-            self.add_option('breakpoint', GDBCommand('source', get_str_repr(os.path.abspath(breakpoint_file.name))))
+            self.add_option('breakpoint', GDBCommand('source', get_str_repr(breakpoint_file.name)))
 
     def init_target(self):
         self.add_option('target', GDBCommand('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address()))
