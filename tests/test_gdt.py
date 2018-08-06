@@ -117,13 +117,18 @@ class TestUtilities(object):
         assert gdt.extract_filename(__file__) == os.path.basename(__file__)[:-3]
 
     @pytest.mark.parametrize('test_input, expected', [
-        ('C:\Project\Test', 'C:\\\\Project\\\\Test'),
-        ('C:/Project/Test', 'C:/Project/Test'),
-        ('C:\Project/Test', 'C:\\\\Project/Test'),
-        ('TestStr', 'TestStr'),
-        ('', '')
+        ('', ''),
+        ('TestStr', os.path.join(os.getcwd(), 'TestStr')),
+        ('/TestStr', os.path.join(os.getcwd(), '/TestStr')),
+        ('\TestStr', os.path.join(os.getcwd(), '\\\\TestStr')),
+        ('\\TestStr', os.path.join(os.getcwd(), '\\\\TestStr')),
+        ('Project/Test', os.path.join(os.getcwd(), 'Project', "Test")),
+        ('Project\Test', os.path.join(os.getcwd(), 'Project') + "\\\\Test"),
+        ('Project\\Test', os.path.join(os.getcwd(), 'Project') + "\\\\Test"),
+        ('/Project/Test', os.path.join(os.getcwd(), '/Project', 'Test')),
+        ('\Project\Test', os.path.join(os.getcwd(), '\\\\Project\\\\Test')),
+        ('\\Project\\Test', os.path.join(os.getcwd(), '\\\\Project\\\\Test'))
     ])
-    @pytest.mark.skip(reason="This test needs to be rewritten to account for calling os.path.abspath")
     def test_get_str_repr(self, test_input, expected):
         assert gdt.get_str_repr(test_input) == expected
 
