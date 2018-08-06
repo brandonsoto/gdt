@@ -223,8 +223,8 @@ class GeneratedCommand(BaseCommand):
     def __init__(self, args):
         BaseCommand.__init__(self, args)
         self.command_file = DEFAULT_COMMANDS_FILE
-        self.project_path = args.root if args.root else get_str_repr(os.path.abspath(self.json_data["project_root_path"]))
-        self.symbol_root_path = args.symbols if args.symbols else self.json_data["symbol_root_path"]
+        self.project_path = os.path.abspath(args.root) if args.root else os.path.abspath(self.json_data["project_root_path"])
+        self.symbol_root_path = os.path.abspath(args.symbols) if args.symbols else os.path.abspath(self.json_data["symbol_root_path"])
         self.source_separator = ";"
         self.opts = OrderedDict([("program", GDBCommand('file', get_str_repr(os.path.abspath(args.program.name))))])
         self.program_name = extract_filename(self.opts['program'].value)
@@ -240,7 +240,7 @@ class GeneratedCommand(BaseCommand):
         solib_search_path = []
         source_search_path = []
 
-        if os.path.abspath(self.symbol_root_path) == os.path.abspath(self.project_path):
+        if self.symbol_root_path == self.project_path:
             solib_search_path, source_search_path = self.generate_search_paths()
         else:
             solib_search_path = self.generate_solib_search_path()
