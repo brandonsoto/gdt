@@ -249,49 +249,44 @@ class GeneratedCommand(BaseCommand):
         self.add_option('solib_path', GDBCommand('set solib-search-path', self.solib_separator.join(solib_search_path)))
         self.add_option('source_path', GDBCommand('dir', self.source_separator.join(source_search_path)))
 
-    def get_search_dirs(self, dirs):
-        return [d for d in dirs if os.path.basename(d) not in self.excluded_dir_names]
+    def update_source_list(self, files, root, source_search_path):
+        has_cpp_file = any(is_cpp_file(f) for f in files)
+        if has_cpp_file and self.program_name in root:
+            source_search_path.insert(0, get_str_repr(root))
+        elif has_cpp_file:
+            source_search_path.append(get_str_repr(root))
+
+    def update_solib_list(self, files, root, search_path):
+        if any(is_shared_library(f) for f in files):
+            search_path.insert(0, get_str_repr(root))
+
+    def update_dirs(self, dirs):
+        dirs[:] = [d for d in dirs if os.path.basename(d) not in self.excluded_dir_names]
+        dirs.sort()
 
     def generate_search_paths(self):
         solib_search_path = []
         source_search_path = []
 
         for root, dirs, files in os.walk(self.project_path, topdown=True):
-            dirs[:] = self.get_search_dirs(dirs)
-            dirs.sort()
-
-            has_cpp_file = any(is_cpp_file(f) for f in files)
-            has_shared_lib = any(is_shared_library(f) for f in files)
-
-            if has_shared_lib:
-                solib_search_path.insert(0, get_str_repr(root))
-
-            if has_cpp_file and self.program_name in root:
-                source_search_path.insert(0, get_str_repr(root))
-            elif has_cpp_file:
-                source_search_path.append(get_str_repr(root))
+            self.update_dirs(dirs)
+            self.update_source_list(files, root, source_search_path)
+            self.update_solib_list(files, root, solib_search_path)
 
         return (solib_search_path, source_search_path)
 
     def generate_solib_search_path(self):
         search_path = []
         for root, dirs, files in os.walk(self.symbol_root_path, topdown=True):
-            dirs[:] = self.get_search_dirs(dirs)
-            dirs.sort()
-            if any(is_shared_library(f) for f in files):
-                search_path.insert(0, get_str_repr(root))
+            self.update_dirs(dirs)
+            self.update_solib_list(files, root, search_path)
         return search_path
 
     def generate_source_search_path(self):
         search_path = []
         for root, dirs, files in os.walk(self.project_path, topdown=True):
-            dirs[:] = self.get_search_dirs(dirs)
-            dirs.sort()
-            has_cpp_file = any(is_cpp_file(f) for f in files)
-            if has_cpp_file and self.program_name in root:
-                search_path.insert(0, get_str_repr(root))
-            elif has_cpp_file:
-                search_path.append(get_str_repr(root))
+            self.update_dirs(dirs)
+            self.update_source_list(files, root, search_path)
         return search_path
 
     def generate_command_file(self):
