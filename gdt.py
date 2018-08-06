@@ -243,8 +243,8 @@ class GeneratedCommand(BaseCommand):
         if self.symbol_root_path == self.project_path:
             solib_search_path, source_search_path = self.generate_search_paths()
         else:
-            solib_search_path = self.generate_solib_search_path()
-            source_search_path = self.generate_source_search_path()
+            source_search_path = self.generate_search_path(self.project_path, self.update_source_list)
+            solib_search_path = self.generate_search_path(self.symbol_root_path, self.update_solib_list)
 
         self.add_option('solib_path', GDBCommand('set solib-search-path', self.solib_separator.join(solib_search_path)))
         self.add_option('source_path', GDBCommand('dir', self.source_separator.join(source_search_path)))
@@ -275,18 +275,11 @@ class GeneratedCommand(BaseCommand):
 
         return (solib_search_path, source_search_path)
 
-    def generate_solib_search_path(self):
+    def generate_search_path(self, root_search_path, update_func):
         search_path = []
-        for root, dirs, files in os.walk(self.symbol_root_path, topdown=True):
+        for root, dirs, files in os.walk(root_search_path, topdown=True):
             self.update_dirs(dirs)
-            self.update_solib_list(files, root, search_path)
-        return search_path
-
-    def generate_source_search_path(self):
-        search_path = []
-        for root, dirs, files in os.walk(self.project_path, topdown=True):
-            self.update_dirs(dirs)
-            self.update_source_list(files, root, search_path)
+            update_func(files, root, search_path)
         return search_path
 
     def generate_command_file(self):
