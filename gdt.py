@@ -249,12 +249,15 @@ class GeneratedCommand(BaseCommand):
         self.add_option('solib_path', GDBCommand('set solib-search-path', self.solib_separator.join(solib_search_path)))
         self.add_option('source_path', GDBCommand('dir', self.source_separator.join(source_search_path)))
 
+    def get_search_dirs(self, dirs):
+        return [d for d in dirs if os.path.basename(d) not in self.excluded_dir_names]
+
     def generate_search_paths(self):
         solib_search_path = []
         source_search_path = []
 
         for root, dirs, files in os.walk(self.project_path, topdown=True):
-            dirs[:] = [d for d in dirs if os.path.basename(d) not in self.excluded_dir_names]
+            dirs[:] = self.get_search_dirs(dirs)
             dirs.sort()
 
             has_cpp_file = any(is_cpp_file(f) for f in files)
@@ -273,7 +276,7 @@ class GeneratedCommand(BaseCommand):
     def generate_solib_search_path(self):
         search_path = []
         for root, dirs, files in os.walk(self.symbol_root_path, topdown=True):
-            dirs[:] = [d for d in dirs if os.path.basename(d) not in self.excluded_dir_names]
+            dirs[:] = self.get_search_dirs(dirs)
             dirs.sort()
             if any(is_shared_library(f) for f in files):
                 search_path.insert(0, get_str_repr(os.path.abspath(root)))
@@ -282,7 +285,7 @@ class GeneratedCommand(BaseCommand):
     def generate_source_search_path(self):
         search_path = []
         for root, dirs, files in os.walk(self.project_path, topdown=True):
-            dirs[:] = [d for d in dirs if os.path.basename(d) not in self.excluded_dir_names]
+            dirs[:] = self.get_search_dirs(dirs)
             dirs.sort()
             has_cpp_file = any(is_cpp_file(f) for f in files)
             if has_cpp_file and self.program_name in root:
