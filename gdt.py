@@ -19,6 +19,7 @@ GDBINIT_FILE = os.path.join(GDT_CONFIG_DIR, 'gdbinit')
 CORE_COMMANDS_FILENAME = 'core_report_commands'
 CORE_COMMANDS_FILE = os.path.join(GDT_CONFIG_DIR, CORE_COMMANDS_FILENAME)
 DEFAULT_CORE_REPORT_FILE = os.path.join(os.getcwd(), 'coredump_report.log')
+UNITTEST_OUTPUT_DIR = '/tmp/unittests'
 
 DEFAULT_IP = "192.168.33.42"
 DEFAULT_USER = "vagrant"
@@ -226,7 +227,8 @@ class GeneratedCommand(BaseCommand):
         self.project_path = os.path.abspath(args.root) if args.root else os.path.abspath(self.json_data["project_root_path"])
         self.symbol_root_path = os.path.abspath(args.symbols) if args.symbols else os.path.abspath(self.json_data["symbol_root_path"])
         self.source_separator = ";"
-        self.opts = OrderedDict([("program", GDBCommand('file', get_str_repr(args.program.name)))])
+        self.program_path = os.path.abspath(args.program.name)
+        self.opts = OrderedDict([("program", GDBCommand('file', get_str_repr(self.program_path)))])
         self.program_name = extract_filename(self.opts['program'].value)
         self.check_dir_exists(self.project_path, 'project')
         self.check_dir_exists(self.symbol_root_path, 'symbol')
@@ -328,6 +330,7 @@ class RemoteCommand(GeneratedCommand):
         GeneratedCommand.__init__(self, args)
         self.is_qnx_target = not args.other_target
         self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"])
+        self.is_unit_test = self.program_path.find('unit_test_release') != -1
         self.source_separator = ";" if self.is_qnx_target else ":"
         self.telnet = TelnetConnection(self.target, self.json_data["target_prompt"])
         self.init(args)
@@ -335,9 +338,20 @@ class RemoteCommand(GeneratedCommand):
     def init(self, args):
         self.init_search_paths()
         self.init_target()
-        self.init_pid()
+        if self.is_unit_test:
+            self.init_upload()
+        else:
+            self.init_pid()
         self.init_breakpoints(args.breakpoints)
         self.generate_command_file()
+
+    def init_upload(self):
+        plain_binary_path = os.path.join(os.path.split(self.program_path)[0], self.program_name)
+        if not os.path.isfile(plain_binary_path):
+            raise GDTException('Could not find test binary: ' + plain_binary_path)
+        self.telnet.send_command('rm -rf ' + UNITTEST_OUTPUT_DIR)
+        self.telnet.send_command('mkdir -p ' + UNITTEST_OUTPUT_DIR)
+        self.add_option('upload', GDBCommand('upload', plain_binary_path + " " + os.path.join(UNITTEST_OUTPUT_DIR, self.program_name)))
 
     def init_breakpoints(self, breakpoint_file):
         if breakpoint_file:
