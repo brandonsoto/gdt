@@ -4,7 +4,6 @@ import os
 import pytest
 import socket
 
-
 JSON_DATA = {"gdb_path": "/gdb",
              "project_root_path": "/project",
              "symbol_root_path" : "/symbol",
@@ -15,9 +14,10 @@ JSON_DATA = {"gdb_path": "/gdb",
              "target_password": gdt.DEFAULT_PASSWORD,
              "target_prompt": gdt.DEFAULT_PROMPT}
 PROGRAM_NAME = 'test_program'
-PROGRAM_PATH = os.path.join(JSON_DATA['project_root_path'], PROGRAM_NAME)
+PROGRAM_BASENAME = PROGRAM_NAME + ".full"
+PROGRAM_PATH = os.path.join(JSON_DATA['project_root_path'], PROGRAM_BASENAME)
 PROGRAM_MOCK = mock.MagicMock()
-PROGRAM_MOCK.name = PROGRAM_PATH + '.full'
+PROGRAM_MOCK.name = PROGRAM_PATH
 
 
 @pytest.fixture
@@ -121,14 +121,14 @@ class TestUtilities(object):
         ('', ''),
         ('TestStr', os.path.join(os.getcwd(), 'TestStr')),
         ('/TestStr', os.path.join(os.getcwd(), '/TestStr')),
-        ('\TestStr', os.path.join(os.getcwd(), '\\\\TestStr')),
-        ('\\TestStr', os.path.join(os.getcwd(), '\\\\TestStr')),
+        (r'\\TestStr', os.path.join(os.getcwd(), r'\\\\TestStr')),
+        (r'\\TestStr', os.path.join(os.getcwd(), r'\\\\TestStr')),
         ('Project/Test', os.path.join(os.getcwd(), 'Project', "Test")),
-        ('Project\Test', os.path.join(os.getcwd(), 'Project') + "\\\\Test"),
-        ('Project\\Test', os.path.join(os.getcwd(), 'Project') + "\\\\Test"),
+        (r'Project\Test', os.path.join(os.getcwd(), r'Project\\Test')),
+        (r'Project\\Test', os.path.join(os.getcwd(), r'Project\\\\Test')),
         ('/Project/Test', os.path.join(os.getcwd(), '/Project', 'Test')),
-        ('\Project\Test', os.path.join(os.getcwd(), '\\\\Project\\\\Test')),
-        ('\\Project\\Test', os.path.join(os.getcwd(), '\\\\Project\\\\Test'))
+        (r'\Project\Test', os.path.join(os.getcwd(), r'\\Project\\Test')),
+        (r'\\Project\\Test', os.path.join(os.getcwd(), r'\\\\Project\\\\Test')),
     ])
     def test_get_str_repr(self, test_input, expected):
         assert gdt.get_str_repr(test_input) == expected
@@ -661,7 +661,7 @@ class TestRemoteCommand(object):
         gen_mock = mocker.patch('gdt.GeneratedCommand.generate_command_file')
         target_mock = mocker.patch('gdt.RemoteCommand.init_target')
         pid_mock = mocker.patch('gdt.RemoteCommand.init_pid')
-        upload_mock = mocker.patch('gdt.RemoteCommand.init_upload')
+        upload_mock = mocker.patch('gdt.RemoteCommand.init_unit_test')
         breakpoint_mock = mocker.patch('gdt.RemoteCommand.init_breakpoints')
 
         args = mock.sentinel
@@ -683,7 +683,7 @@ class TestRemoteCommand(object):
         gen_mock = mocker.patch('gdt.GeneratedCommand.generate_command_file')
         target_mock = mocker.patch('gdt.RemoteCommand.init_target')
         pid_mock = mocker.patch('gdt.RemoteCommand.init_pid')
-        upload_mock = mocker.patch('gdt.RemoteCommand.init_upload')
+        upload_mock = mocker.patch('gdt.RemoteCommand.init_unit_test')
         breakpoint_mock = mocker.patch('gdt.RemoteCommand.init_breakpoints')
 
         args = mock.sentinel
@@ -699,28 +699,24 @@ class TestRemoteCommand(object):
         breakpoint_mock.assert_called_once_with(args.breakpoints)
         gen_mock.assert_called_once()
 
-    def test_init_upload_success(self, remote_cmd, telnet, mocker):
+    def test_init_unit_test(self, remote_cmd, telnet, mocker):
         assert 'upload' not in remote_cmd.opts
+        assert 'gtest_args' not in remote_cmd.opts
 
-        remote_cmd.init_upload()
+        remote_cmd.init_unit_test()
+
+        expected_value = PROGRAM_PATH + " " + os.path.join(gdt.UNITTEST_OUTPUT_DIR, PROGRAM_BASENAME)
 
         assert 'upload' in remote_cmd.opts
-        assert remote_cmd.opts['upload'].prefix == 'upload'
-        assert remote_cmd.opts['upload'].value == PROGRAM_PATH + " " \
-               + os.path.join(gdt.UNITTEST_OUTPUT_DIR, PROGRAM_NAME)
+        assert 'upload' == remote_cmd.opts['upload'].prefix
+        assert expected_value == remote_cmd.opts['upload'].value
+        assert 'gtest_args' in remote_cmd.opts
+        assert 'set args' == remote_cmd.opts['gtest_args'].prefix
+        assert '--gtest_color=yes --gtest_log_to_console' == remote_cmd.opts['gtest_args'].value
         telnet().send_command.assert_has_calls(
             [mocker.call('rm -rf ' + gdt.UNITTEST_OUTPUT_DIR),
              mocker.call('mkdir -p ' + gdt.UNITTEST_OUTPUT_DIR)]
         )
-
-    def test_init_upload_fail(self, remote_cmd, mocker, telnet):
-        mocker.patch('os.path.isfile', return_value=False)
-        assert 'upload' not in remote_cmd.opts
-
-        with pytest.raises(gdt.GDTException):
-            remote_cmd.init_upload()
-            assert 'upload' not in remote_cmd.opts
-            telnet().send_command.assert_not_called()
 
     def test_init_breakpoints_with_file(self, remote_cmd, mocker):
         assert 'breakpoint' not in remote_cmd.opts
