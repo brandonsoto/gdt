@@ -35,7 +35,7 @@ CPP_REGEX = re.compile(r'\.h$|\.hpp$|\.c$|\.cc$|\.cpp$')
 
 
 def get_str_repr(path_string):
-    return repr(os.path.abspath(path_string))[1:-1] if len(path_string) > 0 else ""
+    return repr(str(os.path.abspath(path_string)))[1:-1] if len(path_string) > 0 else ""
 
 
 def verify_required_files_exist():
