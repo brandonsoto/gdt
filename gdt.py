@@ -6,9 +6,11 @@ import json
 import os
 import re
 import socket
+import sys
 import subprocess
 import telnetlib
 
+GDT_VERSION = "v1.1.1"
 GDT_DIR = os.path.dirname(os.path.abspath(__file__))
 GDT_CONFIG_DIRNAME = 'gdt_files'
 GDT_CONFIG_DIR = os.path.join(GDT_DIR, GDT_CONFIG_DIRNAME)
@@ -322,7 +324,7 @@ class CoreCommand(GeneratedCommand):
             cmd_file.write('set logging redirect on\n')
             cmd_file.write(old_contents + '\n')
             cmd_file.write(open(CORE_COMMANDS_FILE, 'r').read())
-            print "core dump report: " + os.path.abspath(self.report_file)
+            print "Created core dump report: " + os.path.abspath(self.report_file)
 
 
 class RemoteCommand(GeneratedCommand):
@@ -452,6 +454,7 @@ def parse_args():
 
     base_parser = argparse.ArgumentParser(add_help=False)
     base_parser.add_argument('-cfg', '--config', default=GDT_CONFIG_FILE, help='Absolute or relative path to gdt\'s config file')
+    base_parser.add_argument('-v', '--version', action='store_true', help='Print gdt\'s software version')
 
     generated_parser = argparse.ArgumentParser(add_help=False, parents=[base_parser])
     generated_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
@@ -478,6 +481,11 @@ def parse_args():
 
     args = parser.parse_args()
     close_files(args)
+
+    if args.version:
+        print GDT_VERSION
+        sys.exit()
+
     return args
 
 
