@@ -4,6 +4,7 @@ import os
 import pytest
 import socket
 
+
 JSON_DATA = {"gdb_path": "/gdb",
              "project_root_path": "/project",
              "symbol_root_path" : "/symbol",
@@ -50,6 +51,7 @@ class MockArgs:
     input = mock.MagicMock()
     other_target = False
     breakpoints = ""
+    reload = None
 
 
 class MockReportArgs:
@@ -281,7 +283,7 @@ class TestTelnetConnection(object):
 
     def test_get_pid_of(self, mocker, telnet, session):
         pid = '4242'
-        session.read_until = mocker.MagicMock(return_value=pid)
+        session.read_until = mocker.MagicMock(return_value=pid + ' test_program')
         telnet.session = session
 
         assert telnet.get_pid_of('test_program') == pid
@@ -627,7 +629,7 @@ class TestRemoteCommand(object):
     @pytest.fixture
     def telnet(self, mocker):
         telnet = mocker.patch('gdt.TelnetConnection', spec=gdt.TelnetConnection)
-        telnet().get_pid_of.return_value = self.PID + ' ' + PROGRAM_NAME
+        telnet().get_pid_of.return_value = self.PID
         return telnet
 
     @pytest.fixture
@@ -746,7 +748,8 @@ class TestRemoteCommand(object):
         assert remote_cmd.opts['pid'].prefix == 'attach'
         assert remote_cmd.opts['pid'].value == self.PID
 
-    def test_init_pid_with_unknown_process(self, remote_cmd):
+    def test_init_pid_with_unknown_process(self, remote_cmd, telnet):
+        telnet().get_pid_of.return_value = None
         remote_cmd.program_name = 'unknown_program'
         assert 'pid' not in remote_cmd.opts
 
