@@ -32,3 +32,8 @@ end
 set pagination off
 set auto-solib-add on
 
+define print_time
+    python import time
+    python print time.time()
+end
+
