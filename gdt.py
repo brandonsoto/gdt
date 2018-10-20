@@ -385,7 +385,8 @@ class CmdFileCommand(BaseCommand):
             for line in content:
                 if line.lower().startswith('file'):
                     program_name = extract_filename(line.split()[1])
-                elif line.lower().startswith('attach'):
+
+                if line.lower().startswith('attach'):
                     pid = TelnetConnection(self.target, self.json_data["target_prompt"]).get_pid_of(program_name)
                     if pid:
                         new_content += 'attach ' + pid + ' \n'
