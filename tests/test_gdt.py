@@ -21,6 +21,14 @@ PROGRAM_MOCK = mock.MagicMock()
 PROGRAM_MOCK.name = PROGRAM_PATH
 CONFIG_MOCK = mock.MagicMock()
 CONFIG_MOCK.name = '/config.json'
+PID = '4242'
+
+
+@pytest.fixture
+def telnet(mocker):
+    telnet = mocker.patch('gdt.TelnetConnection', spec=gdt.TelnetConnection)
+    telnet().get_pid_of.return_value = PID
+    return telnet
 
 
 @pytest.fixture
@@ -593,8 +601,8 @@ class TestCoreCommand(object):
 
 
 class TestCmdFileCommand(object):
-    def test_constructor(self, mock_open, os_mocks, json_mocks, mocker):
-        update_mock = mocker.patch('gdt.CmdFileCommand.update_commands_file')
+    @pytest.fixture
+    def cmd(self, mock_open, os_mocks, json_mocks, mocker):
         command_file = '/home/command_file'
         args = MockArgs()
         args.input.name = command_file
@@ -606,18 +614,23 @@ class TestCmdFileCommand(object):
         assert cmd.json_data == JSON_DATA
         assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
         assert cmd.command_file == command_file
-        update_mock.assert_called_once()
+        return cmd
+
+    def test_update_commands_file(self, cmd, mocker, mock_open, telnet):
+        data = 'file ' + PROGRAM_PATH + '\nattach ' + PID + '\nothercommands\n'
+
+        mock_open.stop()
+        mock_open = mocker.patch('__builtin__.open', mocker.mock_open(read_data=data))
+
+        cmd.update_commands_file()
+
+        telnet().get_pid_of.assert_called_once_with(PROGRAM_NAME)
+        mock_open.assert_has_calls([mocker.call(cmd.command_file, 'r+')], any_order=True)
+        mock_open().seek.assert_called_once()
+        mock_open().write.assert_has_calls([mocker.call(data)])
 
 
 class TestRemoteCommand(object):
-    PID = '425679'
-
-    @pytest.fixture
-    def telnet(self, mocker):
-        telnet = mocker.patch('gdt.TelnetConnection', spec=gdt.TelnetConnection)
-        telnet().get_pid_of.return_value = self.PID
-        return telnet
-
     @pytest.fixture
     def remote_cmd(self, mocker, mock_open, telnet, os_mocks, json_mocks):
         init_mock = mocker.patch('gdt.RemoteCommand.init')
@@ -732,7 +745,7 @@ class TestRemoteCommand(object):
         remote_cmd.telnet.get_pid_of.assert_called_once_with(remote_cmd.program_name)
         assert 'pid' in remote_cmd.opts
         assert remote_cmd.opts['pid'].prefix == 'attach'
-        assert remote_cmd.opts['pid'].value == self.PID
+        assert remote_cmd.opts['pid'].value == PID
 
     def test_init_pid_with_unknown_process(self, remote_cmd, telnet):
         telnet().get_pid_of.return_value = None

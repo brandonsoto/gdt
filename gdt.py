@@ -10,7 +10,7 @@ import sys
 import subprocess
 import telnetlib
 
-GDT_VERSION = "v1.2.2"
+GDT_VERSION = "v1.2.3"
 GDT_DIR = os.path.dirname(os.path.abspath(__file__))
 GDT_CONFIG_DIRNAME = 'gdt_files'
 GDT_CONFIG_DIR = os.path.join(GDT_DIR, GDT_CONFIG_DIRNAME)
@@ -389,7 +389,7 @@ class CmdFileCommand(BaseCommand):
                 if line.lower().startswith('attach'):
                     pid = TelnetConnection(self.target, self.json_data["target_prompt"]).get_pid_of(program_name)
                     if pid:
-                        new_content += 'attach ' + pid + ' \n'
+                        new_content += 'attach ' + pid + '\n'
                     else:
                         raise GDTException('Could not find PID for ' + program_name + '. Exiting now...')
                 else:
