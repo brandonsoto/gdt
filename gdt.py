@@ -314,14 +314,17 @@ class CoreCommand(GeneratedCommand):
             raise InvalidArgs("ERROR: Need to specify --report when using --report-out")
 
     def generate_report_file(self):
-        old_contents = open(self.command_file, 'r').read()
-        with open(self.command_file, 'w') as cmd_file:
+        with open(self.command_file, 'r+') as cmd_file:
+            old_contents = cmd_file.read()
+
+            cmd_file.seek(0)
             cmd_file.write('set logging overwrite on\n')
             cmd_file.write('set logging file ' + self.report_file + '\n')
             cmd_file.write('set logging on\n')
             cmd_file.write('set logging redirect on\n')
             cmd_file.write(old_contents + '\n')
-            cmd_file.write(open(CORE_COMMANDS_FILE, 'r').read())
+            with open(CORE_COMMANDS_FILE, 'r') as core_cmd_file:
+                cmd_file.write(core_cmd_file.read())
             print "Created core dump report: " + os.path.abspath(self.report_file)
 
 
