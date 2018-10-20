@@ -10,7 +10,7 @@ import sys
 import subprocess
 import telnetlib
 
-GDT_VERSION = "v1.2.1"
+GDT_VERSION = "v1.2.2"
 GDT_DIR = os.path.dirname(os.path.abspath(__file__))
 GDT_CONFIG_DIRNAME = 'gdt_files'
 GDT_CONFIG_DIR = os.path.join(GDT_DIR, GDT_CONFIG_DIRNAME)
