@@ -501,7 +501,7 @@ def parse_args():
 
     cmd_parser = subparsers.add_parser('cmd', help='Use to run gdb with a command file', parents=[base_parser])
     cmd_parser.add_argument('-r', '--reload', action='store_true', help='Reuse the previously generated ' + COMMANDS_FILENAME + ' file and update PID if necessary. This is useful when you debug the same process over the same boot cycle or multiple boot cycles. It saves you time since gdt doesn\'t have to regenerate the solib/source search paths.' )
-    cmd_parser.add_argument('-i', '--input', default=DEFAULT_CORE_REPORT_FILE, type=argparse.FileType(), help='Absolute or relative path to command file')
+    cmd_parser.add_argument('-i', '--input', default=DEFAULT_COMMANDS_FILE, type=argparse.FileType(), help='Absolute or relative path to command file')
     cmd_parser.set_defaults(func=lambda args: CmdFileCommand(args))
 
     init_parser = subparsers.add_parser('init', help='Use to initialize ' + GDT_CONFIG_FILENAME)
