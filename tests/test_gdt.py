@@ -19,6 +19,8 @@ PROGRAM_BASENAME = PROGRAM_NAME + ".full"
 PROGRAM_PATH = os.path.join(JSON_DATA['project_root_path'], PROGRAM_BASENAME)
 PROGRAM_MOCK = mock.MagicMock()
 PROGRAM_MOCK.name = PROGRAM_PATH
+CONFIG_MOCK = mock.MagicMock()
+CONFIG_MOCK.name = '/config.json'
 
 
 @pytest.fixture
@@ -40,7 +42,7 @@ def mock_open(mocker):
 
 
 class MockArgs:
-    config = "/config.json"
+    config = CONFIG_MOCK
     root = "/root"
     symbols = "/symbols"
     program = PROGRAM_MOCK
@@ -347,35 +349,18 @@ class TestTelnetConnection(object):
 
 
 class TestBaseCommand(object):
-    @pytest.fixture
-    def basecmd(self, mock_open, os_mocks, json_mocks):
+    def test_constructor(self, mock_open, os_mocks, json_mocks):
         args = MockArgs()
 
         cmd = gdt.BaseCommand(args)
 
         assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
-        assert cmd.config_file == args.config
+        assert cmd.config_file == args.config.name
         assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
         assert cmd.excluded_dir_names == JSON_DATA["excluded_dir_names"]
 
         return cmd
-
-    def test_check_config_exists(self, basecmd, mocker):
-        isfile_mock = mocker.patch('os.path.isfile', return_value=True)
-
-        try:
-            basecmd.check_config_exists("/home/config")
-            isfile_mock.assert_called_once_with('/home/config')
-        except Exception as err:
-            pytest.fail("Unexpected error: " + err.message)
-
-    def test_check_config_exists_fail(self, basecmd, mocker):
-        isfile_mock = mocker.patch('os.path.isfile', return_value=False)
-
-        with pytest.raises(gdt.ConfigFileMissing):
-            basecmd.check_config_exists("/home/config")
-            isfile_mock.assert_called_once_with('/home/config')
 
 
 class TestGeneratedCommand(object):
@@ -388,7 +373,7 @@ class TestGeneratedCommand(object):
 
         assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
-        assert cmd.config_file == args.config
+        assert cmd.config_file == args.config.name
         assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
         assert cmd.excluded_dir_names == JSON_DATA["excluded_dir_names"]
         assert 'program' in cmd.opts and cmd.opts['program'].prefix == 'file'
@@ -548,7 +533,7 @@ class TestCoreCommand(object):
 
         assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
-        assert cmd.config_file == args.config
+        assert cmd.config_file == args.config.name
         assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
         assert cmd.excluded_dir_names == JSON_DATA["excluded_dir_names"]
         assert 'core' in cmd.opts and cmd.opts['core'].prefix == 'core-file'

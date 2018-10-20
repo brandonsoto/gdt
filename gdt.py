@@ -195,22 +195,17 @@ class ConfigFileGenerator:
 class BaseCommand:
     def __init__(self, args):
         verify_required_files_exist()
-        self.check_config_exists(args.config)
 
         self.run_gdb = True
-        self.config_file = os.path.abspath(args.config)
-        self.json_data = json.load(open(args.config))
-        self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
-        self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"])
-        self.excluded_dir_names = [str(d) for d in self.json_data["excluded_dir_names"]]
-        self.command_file = DEFAULT_COMMANDS_FILE
-        self.solib_separator = ";"
-        self.validate_config_data()
-
-    def check_config_exists(self, config_file):
-        if not os.path.isfile(config_file):
-            raise ConfigFileMissing(config_file)
-        print "Using config file: " + config_file
+        self.config_file = os.path.abspath(args.config.name)
+        with open(self.config_file, 'r') as config_file:
+            self.json_data = json.load(config_file)
+            self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
+            self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"])
+            self.excluded_dir_names = [str(d) for d in self.json_data["excluded_dir_names"]]
+            self.command_file = DEFAULT_COMMANDS_FILE
+            self.solib_separator = ";"
+            self.validate_config_data()
 
     def validate_config_data(self):
         if not os.path.isfile(self.json_data["gdb_path"]):
@@ -481,7 +476,7 @@ def parse_args():
     subparsers = parser.add_subparsers()
 
     base_parser = argparse.ArgumentParser(add_help=False)
-    base_parser.add_argument('-cfg', '--config', default=GDT_CONFIG_FILE, help='Absolute or relative path to gdt\'s config file')
+    base_parser.add_argument('-cfg', '--config', default=GDT_CONFIG_FILE, type=argparse.FileType(), help='Absolute or relative path to gdt\'s config file')
 
     generated_parser = argparse.ArgumentParser(add_help=False, parents=[base_parser])
     generated_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
