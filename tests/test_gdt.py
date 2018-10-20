@@ -610,10 +610,12 @@ class TestCoreCommand(object):
 
 
 class TestCmdFileCommand(object):
-    def test_constructor(self, mock_open, os_mocks, json_mocks):
+    def test_constructor(self, mock_open, os_mocks, json_mocks, mocker):
+        update_mock = mocker.patch('gdt.CmdFileCommand.update_commands_file')
         command_file = '/home/command_file'
         args = MockArgs()
         args.input.name = command_file
+        args.reload = True
 
         cmd = gdt.CmdFileCommand(args)
 
@@ -621,6 +623,7 @@ class TestCmdFileCommand(object):
         assert cmd.json_data == JSON_DATA
         assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
         assert cmd.command_file == command_file
+        update_mock.assert_called_once()
 
 
 class TestRemoteCommand(object):

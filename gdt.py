@@ -373,16 +373,13 @@ class RemoteCommand(GeneratedCommand):
 class CmdFileCommand(BaseCommand):
     def __init__(self, args):
         BaseCommand.__init__(self, args)
+        self.command_file = args.input.name
+
         if (args.reload):
             self.update_commands_file()
-        elif (args.input):
-            self.command_file = args.input.name
 
     def update_commands_file(self):
-        if (not os.path.isfile(DEFAULT_COMMANDS_FILE)):
-            raise GDTException("ERROR: missing " + COMMANDS_FILENAME + " file - " + DEFAULT_COMMANDS_FILE)
-
-        with open(DEFAULT_COMMANDS_FILE, 'r+') as f:
+        with open(self.command_file, 'r+') as f:
             content = f.readlines()
             new_content = ''
             program_name = ''
@@ -503,9 +500,8 @@ def parse_args():
     remote_parser.set_defaults(func=lambda args: RemoteCommand(args))
 
     cmd_parser = subparsers.add_parser('cmd', help='Use to run gdb with a command file', parents=[base_parser])
-    group = cmd_parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-r', '--reload', action='store_true', help='Reuse the previously generated ' + COMMANDS_FILENAME + ' file and update PID if necessary. This is useful when you debug the same process over the same boot cycle or multiple boot cycles. It saves you time since gdt doesn\'t have to regenerate the solib/source search paths.' )
-    group.add_argument('-i', '--input', type=argparse.FileType(), help='Absolute or relative path to command file')
+    cmd_parser.add_argument('-r', '--reload', action='store_true', help='Reuse the previously generated ' + COMMANDS_FILENAME + ' file and update PID if necessary. This is useful when you debug the same process over the same boot cycle or multiple boot cycles. It saves you time since gdt doesn\'t have to regenerate the solib/source search paths.' )
+    cmd_parser.add_argument('-i', '--input', default=DEFAULT_CORE_REPORT_FILE, type=argparse.FileType(), help='Absolute or relative path to command file')
     cmd_parser.set_defaults(func=lambda args: CmdFileCommand(args))
 
     init_parser = subparsers.add_parser('init', help='Use to initialize ' + GDT_CONFIG_FILENAME)
