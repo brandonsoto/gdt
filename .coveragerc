@@ -29,6 +29,7 @@ exclude_lines =
     class TelnetError
     class GDTException
     class InvalidArgs
+    def run
 
 ignore_errors = True
 include = ./

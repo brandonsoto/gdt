@@ -10,7 +10,7 @@ import sys
 import subprocess
 import telnetlib
 
-GDT_VERSION = "v1.2.3"
+GDT_VERSION = "v2.0.0"
 GDT_DIR = os.path.dirname(os.path.abspath(__file__))
 GDT_CONFIG_DIRNAME = 'gdt_files'
 GDT_CONFIG_DIR = os.path.join(GDT_DIR, GDT_CONFIG_DIRNAME)
@@ -45,7 +45,7 @@ def verify_required_files_exist():
     if not os.path.isdir(GDT_CONFIG_DIR):
         raise RequiredFileMissing("configuration directory: " + GDT_CONFIG_DIR)
     elif not os.path.isfile(CORE_COMMANDS_FILE):
-        raise RequiredFileMissing("core dump commands file: : " + CORE_COMMANDS_FILE)
+        raise RequiredFileMissing("core dump commands file: " + CORE_COMMANDS_FILE)
 
 
 def validate_ipv4_address(ip):
@@ -140,10 +140,10 @@ class ConfigFileOption:
         self.error_str = error_str
         self.ask_user = ask_user
 
-        self.init_desc()
+        self.init_description()
         self.init_value()
 
-    def init_desc(self):
+    def init_description(self):
         if self.default_value:
             self.desc = self.desc + ' [Default: "' + self.default_value + '"]: '
         else:
@@ -168,13 +168,10 @@ class ConfigFileOption:
 
 
 class ConfigFileGenerator:
-    def __init__(self, args=None):
-        self.run_gdb = False
-        self.generate_config_file()
-
-    def generate_config_file(self):
+    def __init__(self):
         verify_required_files_exist()
 
+    def run(self):
         print 'This utility will walk you through creating a ' + GDT_CONFIG_FILENAME + ' file\n'
 
         options = [ConfigFileOption('gdb_path', 'GDB path', 'is not a file.', lambda file_path: os.path.abspath(file_path) if os.path.isfile(file_path) else None),
@@ -196,16 +193,21 @@ class BaseCommand:
     def __init__(self, args):
         verify_required_files_exist()
 
-        self.run_gdb = True
-        self.config_file = os.path.abspath(args.config.name)
+        self.config_file = os.path.abspath(args.config)
+        self.check_config_file_exists()
+
         with open(self.config_file, 'r') as config_file:
             self.json_data = json.load(config_file)
             self.gdb_path = os.path.abspath(self.json_data["gdb_path"])
             self.target = Target(self.json_data["target_ip"], self.json_data["target_user"], self.json_data["target_password"], self.json_data["target_debug_port"])
             self.excluded_dir_names = [str(d) for d in self.json_data["excluded_dir_names"]]
             self.command_file = DEFAULT_COMMANDS_FILE
-            self.solib_separator = ";"
             self.validate_config_data()
+
+    def check_config_file_exists(self):
+        if not os.path.isfile(self.config_file):
+            raise ConfigFileMissing(self.config_file)
+        print "Using config file: " + self.config_file
 
     def validate_config_data(self):
         if not os.path.isfile(self.json_data["gdb_path"]):
@@ -219,14 +221,29 @@ class BaseCommand:
         elif not validate_port(self.json_data["target_debug_port"]):
             raise InvalidConfig("target_debug_port", self.json_data["target_debug_port"], self.config_file)
 
+    def run(self):
+        returncode = None
+        process = None
+        try:
+            process = subprocess.Popen(args=[self.gdb_path, '--command=' + self.command_file, '-q'])
+            while returncode is None:
+                try:
+                    returncode = process.wait()
+                except KeyboardInterrupt:
+                    continue  # ignore interrupt to allow GDB child process to handle it
+        except OSError as error:
+            raise error
+        finally:
+            if process is not None and returncode is None:
+                process.kill()
+
 
 class GeneratedCommand(BaseCommand):
     def __init__(self, args):
         BaseCommand.__init__(self, args)
-        self.command_file = DEFAULT_COMMANDS_FILE
         self.project_path = os.path.abspath(args.root) if args.root else os.path.abspath(self.json_data["project_root_path"])
         self.symbol_root_path = os.path.abspath(args.symbols) if args.symbols else os.path.abspath(self.json_data["symbol_root_path"])
-        self.source_separator = ";"
+        self.path_separator = ";"
         self.program_path = os.path.abspath(args.program.name)
         self.opts = OrderedDict([("program", GDBCommand('file', get_str_repr(self.program_path)))])
         self.program_name = extract_filename(self.opts['program'].value)
@@ -237,7 +254,7 @@ class GeneratedCommand(BaseCommand):
         if not validate_dir(directory):
             raise IOError("ERROR: " + name + " root path does not exist or is not a directory: " + directory)
 
-    def init_search_paths(self):
+    def add_search_path_commands(self):
         print "Generating search paths..."
         solib_search_path = []
         source_search_path = []
@@ -248,8 +265,8 @@ class GeneratedCommand(BaseCommand):
             source_search_path = self.generate_search_path(self.project_path, self.update_source_list)
             solib_search_path = self.generate_search_path(self.symbol_root_path, self.update_solib_list)
 
-        self.add_option('solib_path', GDBCommand('set solib-search-path', self.solib_separator.join(solib_search_path)))
-        self.add_option('source_path', GDBCommand('dir', self.source_separator.join(source_search_path)))
+        self.add_option('solib_path', GDBCommand('set solib-search-path', self.path_separator.join(solib_search_path)))
+        self.add_option('source_path', GDBCommand('dir', self.path_separator.join(source_search_path)))
 
     def update_source_list(self, files, root, source_search_path):
         has_cpp_file = any(is_cpp_file(f) for f in files)
@@ -295,25 +312,25 @@ class GeneratedCommand(BaseCommand):
         self.opts[key] = option
 
 
-class CoreCommand(GeneratedCommand):
+class CoreDumpCommand(GeneratedCommand):
     def __init__(self, args):
         self.validate_args(args)
         GeneratedCommand.__init__(self, args)
-        self.init_search_paths()
-        self.add_option('core', GDBCommand('core-file', get_str_repr(args.core.name)))
+        self.add_search_path_commands()
+        self.add_option('core', GDBCommand('core-file', get_str_repr(args.core_dump.name)))
         self.report_file = args.report_out
         self.init(args)
 
     def init(self, args):
         self.generate_command_file()
         if args.report:
-            self.generate_report_file()
+            self.add_core_dump_report_commands()
 
     def validate_args(self, args):
         if not args.report and args.report_out != DEFAULT_CORE_REPORT_FILE:
             raise InvalidArgs("ERROR: Need to specify --report when using --report-out")
 
-    def generate_report_file(self):
+    def add_core_dump_report_commands(self):
         with open(self.command_file, 'r+') as cmd_file:
             old_contents = cmd_file.read()
 
@@ -325,42 +342,43 @@ class CoreCommand(GeneratedCommand):
             cmd_file.write(old_contents + '\n')
             with open(CORE_COMMANDS_FILE, 'r') as core_cmd_file:
                 cmd_file.write(core_cmd_file.read())
-            print "Created core dump report: " + os.path.abspath(self.report_file)
+            print "Creating core dump report: " + os.path.abspath(self.report_file) + "..."
 
 
-class RemoteCommand(GeneratedCommand):
+class RemoteTargetCommand(GeneratedCommand):
     def __init__(self, args):
         GeneratedCommand.__init__(self, args)
         self.is_qnx_target = not args.other_target
-        self.is_unit_test = self.program_path.find('_unit_test_') != -1
-        self.source_separator = ";" if self.is_qnx_target else ":"
+        self.is_unit_test = self.program_name.find('_unit_test_') != -1
         self.telnet = TelnetConnection(self.target, self.json_data["target_prompt"])
         self.init(args)
 
     def init(self, args):
-        self.init_search_paths()
-        self.init_target()
+        self.add_search_path_commands()
+        self.add_target_command()
+
         if self.is_unit_test:
-            self.init_unit_test()
+            self.add_unit_test_commands()
         else:
-            self.init_pid()
-        self.init_breakpoints(args.breakpoints)
+            self.add_pid_command()
+
+        self.add_breakpoint_command(args.breakpoints)
         self.generate_command_file()
 
-    def init_unit_test(self):
+    def add_unit_test_commands(self):
         self.telnet.send_command('rm -rf ' + UNITTEST_OUTPUT_DIR)
         self.telnet.send_command('mkdir -p ' + UNITTEST_OUTPUT_DIR)
         self.add_option('upload', GDBCommand('upload', self.program_path + " " + os.path.join(UNITTEST_OUTPUT_DIR, os.path.basename(self.program_path))))
         self.add_option('gtest_args', GDBCommand('set args', '--gtest_color=yes --gtest_log_to_console'))
 
-    def init_breakpoints(self, breakpoint_file):
+    def add_breakpoint_command(self, breakpoint_file):
         if breakpoint_file:
             self.add_option('breakpoint', GDBCommand('source', get_str_repr(breakpoint_file.name)))
 
-    def init_target(self):
+    def add_target_command(self):
         self.add_option('target', GDBCommand('target qnx' if self.is_qnx_target else 'target extended-remote', self.target.full_address()))
 
-    def init_pid(self):
+    def add_pid_command(self):
         print 'Getting pid of ' + self.program_name + '...'
         pid = self.telnet.get_pid_of(self.program_name)
         if pid:
@@ -371,18 +389,21 @@ class RemoteCommand(GeneratedCommand):
 class CmdFileCommand(BaseCommand):
     def __init__(self, args):
         BaseCommand.__init__(self, args)
-        self.command_file = args.input.name
+        self.command_file = os.path.abspath(args.input.name)
 
-        if (args.reload):
-            self.update_commands_file()
+        print "Using " + self.command_file
 
-    def update_commands_file(self):
+        if args.reload:
+            self.reload_commands_file()
+
+    def reload_commands_file(self):
+        print "Updating " + self.command_file + "..."
+
         with open(self.command_file, 'r+') as f:
-            content = f.readlines()
             new_content = ''
             program_name = ''
 
-            for line in content:
+            for line in f.readlines():
                 if line.lower().startswith('file'):
                     program_name = extract_filename(line.split()[1])
 
@@ -390,8 +411,6 @@ class CmdFileCommand(BaseCommand):
                     pid = TelnetConnection(self.target, self.json_data["target_prompt"]).get_pid_of(program_name)
                     if pid:
                         new_content += 'attach ' + pid + '\n'
-                    else:
-                        raise GDTException('Could not find PID for ' + program_name + '. Exiting now...')
                 else:
                     new_content += line
 
@@ -450,23 +469,6 @@ class TelnetConnection:
         return match.group().split()[0] if match else None
 
 
-def run_gdb(gdb_path, command_file):
-    returncode = None
-    process = None
-    try:
-        process = subprocess.Popen(args=[gdb_path, '--command=' + command_file, '-q'])
-        while returncode is None:
-            try:
-                returncode = process.wait()
-            except KeyboardInterrupt:
-                continue  # ignore interrupt to allow GDB child process to handle it
-    except OSError as error:
-        print "encountered an error: " + error.message
-    finally:
-        if process is not None and returncode is None:
-            process.kill()
-
-
 def close_files(args):
     for arg in vars(args).iteritems():
         if type(arg[1]) == file:
@@ -479,31 +481,31 @@ def parse_args():
     subparsers = parser.add_subparsers()
 
     base_parser = argparse.ArgumentParser(add_help=False)
-    base_parser.add_argument('-cfg', '--config', default=GDT_CONFIG_FILE, type=argparse.FileType(), help='Absolute or relative path to gdt\'s config file')
+    base_parser.add_argument('-cfg', '--config', default=GDT_CONFIG_FILE, help='Absolute or relative path to gdt\'s config file')
 
     generated_parser = argparse.ArgumentParser(add_help=False, parents=[base_parser])
-    generated_parser.add_argument('-p', '--program', required=True, type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
+    generated_parser.add_argument('program', type=argparse.FileType(), help='Absolute or relative path to program exectuable (usually ends in .full)')
     generated_parser.add_argument('-r', '--root', help='Absolute or relative path to root project directory (project_root_path in ' + GDT_CONFIG_FILENAME + ' will be ignored)')
     generated_parser.add_argument('-s', '--symbols', help='Absolute or relative path to root symbols directory (symbol_root_path in ' + GDT_CONFIG_FILENAME + ' will be ignored)')
 
-    core_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[generated_parser])
-    core_parser.add_argument('-c', '--core', required=True, type=argparse.FileType(), help='Absolute or relative path to core file')
-    core_parser.add_argument('-rp', '--report', action='store_true', help='Generate a core dump report')
-    core_parser.add_argument('-ro', '--report-out', default=DEFAULT_CORE_REPORT_FILE, help='Output file for core dump report (requires -rp option)')
-    core_parser.set_defaults(func=lambda args: CoreCommand(args))
+    core_dump_parser = subparsers.add_parser('core', help='Use when debugging a core file', parents=[generated_parser], formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    core_dump_parser.add_argument('core_dump', type=argparse.FileType(), help='Absolute or relative path to core file')
+    core_dump_parser.add_argument('-rp', '--report', action='store_true', help='Generate a core dump report')
+    core_dump_parser.add_argument('-ro', '--report-out', default=DEFAULT_CORE_REPORT_FILE, help='Output file for core dump report (requires -rp option)')
+    core_dump_parser.set_defaults(func=lambda args: CoreDumpCommand(args))
 
-    remote_parser = subparsers.add_parser('remote', help='Use when debugging a remote program', parents=[generated_parser])
-    remote_parser.add_argument('-b', '--breakpoints', type=argparse.FileType(), help='Absolute or relative path to breakpoint file')
-    remote_parser.add_argument('-ot', '--other-target', action='store_true', default=False, help="Use when the remote target is run on a non-QNX OS")
-    remote_parser.set_defaults(func=lambda args: RemoteCommand(args))
+    remote_target_parser = subparsers.add_parser('remote', help='Use when debugging a remote program', parents=[generated_parser], formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    remote_target_parser.add_argument('-b', '--breakpoints', type=argparse.FileType(), help='Absolute or relative path to breakpoint file')
+    remote_target_parser.add_argument('-ot', '--other-target', action='store_true', default=False, help="Use when the remote target is run on a non-QNX OS")
+    remote_target_parser.set_defaults(func=lambda args: RemoteTargetCommand(args))
 
-    cmd_parser = subparsers.add_parser('cmd', help='Use to run gdb with a command file', parents=[base_parser])
-    cmd_parser.add_argument('-r', '--reload', action='store_true', help='Reuse the previously generated ' + COMMANDS_FILENAME + ' file and update PID if necessary. This is useful when you debug the same process over the same boot cycle or multiple boot cycles. It saves you time since gdt doesn\'t have to regenerate the solib/source search paths.' )
-    cmd_parser.add_argument('-i', '--input', default=DEFAULT_COMMANDS_FILE, type=argparse.FileType(), help='Absolute or relative path to command file')
-    cmd_parser.set_defaults(func=lambda args: CmdFileCommand(args))
+    cmd_file_parser = subparsers.add_parser('cmd', help='Use to run gdb with a command file', parents=[base_parser], formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    cmd_file_parser.add_argument('-r', '--reload', action='store_true', help='Reuse the previously generated ' + COMMANDS_FILENAME + ' file and update PID if necessary. This is useful when you debug the same process over the same boot cycle or multiple boot cycles. It saves you time since gdt doesn\'t have to regenerate the solib/source search paths.' )
+    cmd_file_parser.add_argument('-i', '--input', default=DEFAULT_COMMANDS_FILE, type=argparse.FileType(), help='Absolute or relative path to command file')
+    cmd_file_parser.set_defaults(func=lambda args: CmdFileCommand(args))
 
-    init_parser = subparsers.add_parser('init', help='Use to initialize ' + GDT_CONFIG_FILENAME)
-    init_parser.set_defaults(func=lambda args: ConfigFileGenerator(args))
+    init_parser = subparsers.add_parser('init', help='Use to initialize ' + GDT_CONFIG_FILENAME, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    init_parser.set_defaults(func=lambda args: ConfigFileGenerator())
 
     args = parser.parse_args()
     close_files(args)
@@ -514,13 +516,12 @@ def parse_args():
 def main():
     try:
         args = parse_args()
-        config = args.func(args)
-        if config.run_gdb:
-            run_gdb(config.gdb_path, config.command_file)
+        args.func(args).run()
     except KeyboardInterrupt:
         pass
-    except (GDTException, IOError) as err:
+    except (GDTException, IOError, OSError, EOFError, TelnetError) as err:
         print err
+        sys.exit(1)
 
 
 if __name__ == '__main__':

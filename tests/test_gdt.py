@@ -19,8 +19,7 @@ PROGRAM_BASENAME = PROGRAM_NAME + ".full"
 PROGRAM_PATH = os.path.join(JSON_DATA['project_root_path'], PROGRAM_BASENAME)
 PROGRAM_MOCK = mock.MagicMock()
 PROGRAM_MOCK.name = PROGRAM_PATH
-CONFIG_MOCK = mock.MagicMock()
-CONFIG_MOCK.name = '/config.json'
+CONFIG_PATH = '/config.json'
 PID = '4242'
 
 
@@ -50,11 +49,11 @@ def mock_open(mocker):
 
 
 class MockArgs:
-    config = CONFIG_MOCK
+    config = CONFIG_PATH
     root = "/root"
     symbols = "/symbols"
     program = PROGRAM_MOCK
-    core = mock.MagicMock()
+    core_dump = mock.MagicMock()
     report = False
     report_out = gdt.DEFAULT_CORE_REPORT_FILE
     command_file = '/command_file'
@@ -179,6 +178,10 @@ class TestUtilities(object):
 
     def test_target_class(self):
         target = gdt.Target('192.168.33.42', 'user', 'password', '4242')
+        assert target.user == 'user'
+        assert target.password == 'password'
+        assert target.ip == '192.168.33.42'
+        assert target.port == '4242'
         assert target.full_address() == '192.168.33.42:4242'
 
     def test_gdbcommand_class(self):
@@ -187,13 +190,24 @@ class TestUtilities(object):
 
 
 class TestConfigGenerator(object):
-    def test_config_generator(self, mocker, mock_open):
-        mock_dump = mocker.patch('json.dump')
-        mocker.patch('gdt.ConfigFileOption', autospec=True)
+    @pytest.fixture
+    def config_generator(self, mocker, mock_open):
+        isfile_mock = mocker.patch('os.path.isfile', return_value=True)
+        isdir_mock = mocker.patch('os.path.isdir', return_value=True)
 
         generator = gdt.ConfigFileGenerator()
 
-        assert not generator.run_gdb
+        isdir_mock.assert_called_once_with(gdt.GDT_CONFIG_DIR)
+        isfile_mock.assert_called_once_with(gdt.CORE_COMMANDS_FILE)
+
+        return generator
+
+    def test_run(self, mocker, mock_open, config_generator):
+        mock_dump = mocker.patch('json.dump')
+        mocker.patch('gdt.ConfigFileOption', autospec=True)
+
+        config_generator.run()
+
         mock_open.assert_called_once_with(gdt.GDT_CONFIG_FILE, 'w')
         mock_dump.assert_called_once()
 
@@ -231,11 +245,11 @@ class TestConfigFileOption(object):
         ("value", "key", "key [Default: \"value\"]: "),
         ("", "key", "key: ")
     ])
-    def test_init_desc(self, config_file_option, default_value, initial_desc, expected):
+    def test_init_description(self, config_file_option, default_value, initial_desc, expected):
         config_file_option.default_value = default_value
         config_file_option.desc = initial_desc
 
-        config_file_option.init_desc()
+        config_file_option.init_description()
 
         assert config_file_option.desc == expected
 
@@ -357,18 +371,33 @@ class TestTelnetConnection(object):
 
 
 class TestBaseCommand(object):
-    def test_constructor(self, mock_open, os_mocks, json_mocks):
+    @pytest.fixture
+    def basecmd(self, mock_open, os_mocks, json_mocks):
         args = MockArgs()
 
         cmd = gdt.BaseCommand(args)
 
-        assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
-        assert cmd.config_file == args.config.name
+        assert cmd.config_file == args.config
         assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
         assert cmd.excluded_dir_names == JSON_DATA["excluded_dir_names"]
 
         return cmd
+
+    def test_check_config_exists(self, basecmd, mocker):
+        isfile_mock = mocker.patch('os.path.isfile', return_value=True)
+
+        try:
+            basecmd.check_config_file_exists()
+            isfile_mock.assert_called_once_with(basecmd.config_file)
+        except Exception as err:
+            pytest.fail("Unexpected error: " + err.message)
+
+    def test_check_config_exists_fail(self, basecmd, mocker):
+        isfile_mock = mocker.patch('os.path.isfile', return_value=False)
+        with pytest.raises(gdt.ConfigFileMissing):
+            basecmd.check_config_file_exists()
+            isfile_mock.assert_called_once_with(basecmd.config_file)
 
 
 class TestGeneratedCommand(object):
@@ -379,9 +408,8 @@ class TestGeneratedCommand(object):
 
         cmd = gdt.GeneratedCommand(args)
 
-        assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
-        assert cmd.config_file == args.config.name
+        assert cmd.config_file == args.config
         assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
         assert cmd.excluded_dir_names == JSON_DATA["excluded_dir_names"]
         assert 'program' in cmd.opts and cmd.opts['program'].prefix == 'file'
@@ -422,7 +450,7 @@ class TestGeneratedCommand(object):
         assert 'key' in cmd.opts
         assert cmd.opts['key'] == 'option'
 
-    def test_init_search_paths_with_same_dirs(self, cmd, mocker):
+    def test_add_search_path_commands_with_same_dirs(self, cmd, mocker):
         search_paths_mock = mocker.patch('gdt.GeneratedCommand.generate_search_paths', return_value=(['/solib1', '/solib2'], ['/src1', '/src2']))
         generate_path_mock = mocker.patch('gdt.GeneratedCommand.generate_search_path', return_value=[])
         cmd.symbol_root_path = "/root"
@@ -432,7 +460,7 @@ class TestGeneratedCommand(object):
         assert 'solib_path' not in cmd.opts
         assert 'source_path' not in cmd.opts
 
-        cmd.init_search_paths()
+        cmd.add_search_path_commands()
 
         assert 'solib_path' in cmd.opts
         assert 'source_path' in cmd.opts
@@ -442,7 +470,7 @@ class TestGeneratedCommand(object):
         search_paths_mock.assert_called_once()
 
     @pytest.mark.skip(reason="This test needs to be updated because of refactoring generate_search_path")
-    def test_init_search_paths_with_different_dirs(self, cmd, mocker):
+    def test_add_search_path_commands_with_different_dirs(self, cmd, mocker):
         search_paths_mock = mocker.patch('gdt.GeneratedCommand.generate_search_paths', return_value=())
         generate_path_mock = mocker.patch('gdt.GeneratedCommand.generate_search_path', return_value=['/src1', '/src2'])
 
@@ -450,7 +478,7 @@ class TestGeneratedCommand(object):
         assert 'solib_path' not in cmd.opts
         assert 'source_path' not in cmd.opts
 
-        cmd.init_search_paths()
+        cmd.add_search_path_commands()
 
         assert 'solib_path' in cmd.opts
         assert 'source_path' in cmd.opts
@@ -530,21 +558,21 @@ class TestGeneratedCommand(object):
         assert [] == cmd.generate_search_path(cmd.project_path, cmd.update_source_list)
 
 
-class TestCoreCommand(object):
+class TestCoreDumpCommand(object):
     @pytest.fixture
     def core_cmd(self, mocker, mock_open, os_mocks, json_mocks):
-        search_path_mock = mocker.patch('gdt.GeneratedCommand.init_search_paths')
-        init_mock = mocker.patch('gdt.CoreCommand.init')
+        search_path_mock = mocker.patch('gdt.GeneratedCommand.add_search_path_commands')
+        init_mock = mocker.patch('gdt.CoreDumpCommand.init')
         args = MockArgs()
 
-        cmd = gdt.CoreCommand(args)
+        cmd = gdt.CoreDumpCommand(args)
 
-        assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
-        assert cmd.config_file == args.config.name
+        assert cmd.config_file == args.config
         assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
         assert cmd.excluded_dir_names == JSON_DATA["excluded_dir_names"]
-        assert 'core' in cmd.opts and cmd.opts['core'].prefix == 'core-file'
+        assert 'core' in cmd.opts
+        assert cmd.opts['core'].prefix == 'core-file'
         assert cmd.report_file == args.report_out
         assert cmd.program_name == PROGRAM_NAME
         search_path_mock.assert_called_once()
@@ -556,7 +584,7 @@ class TestCoreCommand(object):
         mocker.stopall()
 
         gen_mock = mocker.patch('gdt.GeneratedCommand.generate_command_file')
-        gen_report_mock = mocker.patch('gdt.CoreCommand.generate_report_file')
+        gen_report_mock = mocker.patch('gdt.CoreDumpCommand.add_core_dump_report_commands')
 
         core_cmd.init(MockReportArgs(False, ""))
 
@@ -567,17 +595,17 @@ class TestCoreCommand(object):
         mocker.stopall()
 
         gen_mock = mocker.patch('gdt.GeneratedCommand.generate_command_file')
-        gen_report_mock = mocker.patch('gdt.CoreCommand.generate_report_file')
+        gen_report_mock = mocker.patch('gdt.CoreDumpCommand.add_core_dump_report_commands')
 
         core_cmd.init(MockReportArgs(True, ""))
 
         gen_mock.assert_called_once()
         gen_report_mock.assert_called_once()
 
-    @pytest.mark.parametrize('generate_report_file', [False, True])
-    def test_validate_args_success(self, core_cmd, generate_report_file):
+    @pytest.mark.parametrize('add_core_dump_report_commands', [False, True])
+    def test_validate_args_success(self, core_cmd, add_core_dump_report_commands):
         try:
-            core_cmd.validate_args(MockReportArgs(generate_report_file, gdt.DEFAULT_CORE_REPORT_FILE))
+            core_cmd.validate_args(MockReportArgs(add_core_dump_report_commands, gdt.DEFAULT_CORE_REPORT_FILE))
         except Exception as err:
             pytest.fail("Unexpected error: " + err.message)
 
@@ -587,8 +615,8 @@ class TestCoreCommand(object):
             assert output_file != gdt.DEFAULT_CORE_REPORT_FILE
             core_cmd.validate_args(MockReportArgs(False, output_file))
 
-    def test_generate_report_file(self, core_cmd, mocker, mock_open):
-        core_cmd.generate_report_file()
+    def test_add_core_dump_report_commands(self, core_cmd, mocker, mock_open):
+        core_cmd.add_core_dump_report_commands()
         mock_open.assert_has_calls(
             [mocker.call(core_cmd.command_file, 'r+'),
              mocker.call(gdt.CORE_COMMANDS_FILE, 'r')],
@@ -610,19 +638,20 @@ class TestCmdFileCommand(object):
 
         cmd = gdt.CmdFileCommand(args)
 
-        assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
         assert cmd.gdb_path == os.path.abspath(JSON_DATA['gdb_path'])
         assert cmd.command_file == command_file
+
         return cmd
 
-    def test_update_commands_file(self, cmd, mocker, mock_open, telnet):
+
+    def test_reload_commands_file(self, cmd, mocker, mock_open, telnet):
         data = 'file ' + PROGRAM_PATH + '\nattach ' + PID + '\nothercommands\n'
 
         mock_open.stop()
         mock_open = mocker.patch('__builtin__.open', mocker.mock_open(read_data=data))
 
-        cmd.update_commands_file()
+        cmd.reload_commands_file()
 
         telnet().get_pid_of.assert_called_once_with(PROGRAM_NAME)
         mock_open.assert_has_calls([mocker.call(cmd.command_file, 'r+')], any_order=True)
@@ -630,15 +659,14 @@ class TestCmdFileCommand(object):
         mock_open().write.assert_has_calls([mocker.call(data)])
 
 
-class TestRemoteCommand(object):
+class TestRemoteTargetCommand(object):
     @pytest.fixture
     def remote_cmd(self, mocker, mock_open, telnet, os_mocks, json_mocks):
-        init_mock = mocker.patch('gdt.RemoteCommand.init')
+        init_mock = mocker.patch('gdt.RemoteTargetCommand.init')
         args = MockArgs()
 
-        cmd = gdt.RemoteCommand(args)
+        cmd = gdt.RemoteTargetCommand(args)
 
-        assert cmd.run_gdb
         assert cmd.json_data == JSON_DATA
         assert cmd.gdb_path == JSON_DATA['gdb_path']
         assert cmd.command_file == gdt.DEFAULT_COMMANDS_FILE
@@ -648,7 +676,7 @@ class TestRemoteCommand(object):
         assert cmd.target.password == JSON_DATA['target_password']
         assert cmd.target.ip == JSON_DATA['target_ip']
         assert cmd.target.port == JSON_DATA['target_debug_port']
-        assert cmd.source_separator == ';'
+        assert cmd.path_separator == ';'
         assert cmd.program_name == PROGRAM_NAME
 
         init_mock.assert_called_once()
@@ -658,12 +686,12 @@ class TestRemoteCommand(object):
     def test_init_with_no_unittest(self, remote_cmd, mocker):
         mocker.stopall()
 
-        search_mock = mocker.patch('gdt.GeneratedCommand.init_search_paths')
+        search_mock = mocker.patch('gdt.GeneratedCommand.add_search_path_commands')
         gen_mock = mocker.patch('gdt.GeneratedCommand.generate_command_file')
-        target_mock = mocker.patch('gdt.RemoteCommand.init_target')
-        pid_mock = mocker.patch('gdt.RemoteCommand.init_pid')
-        upload_mock = mocker.patch('gdt.RemoteCommand.init_unit_test')
-        breakpoint_mock = mocker.patch('gdt.RemoteCommand.init_breakpoints')
+        target_mock = mocker.patch('gdt.RemoteTargetCommand.add_target_command')
+        pid_mock = mocker.patch('gdt.RemoteTargetCommand.add_pid_command')
+        upload_mock = mocker.patch('gdt.RemoteTargetCommand.add_unit_test_commands')
+        breakpoint_mock = mocker.patch('gdt.RemoteTargetCommand.add_breakpoint_command')
 
         args = mock.sentinel
         args.breakpoints = 'breakpoints'
@@ -680,12 +708,12 @@ class TestRemoteCommand(object):
     def test_init_with_unittest(self, remote_cmd, mocker):
         mocker.stopall()
 
-        search_mock = mocker.patch('gdt.GeneratedCommand.init_search_paths')
+        search_mock = mocker.patch('gdt.GeneratedCommand.add_search_path_commands')
         gen_mock = mocker.patch('gdt.GeneratedCommand.generate_command_file')
-        target_mock = mocker.patch('gdt.RemoteCommand.init_target')
-        pid_mock = mocker.patch('gdt.RemoteCommand.init_pid')
-        upload_mock = mocker.patch('gdt.RemoteCommand.init_unit_test')
-        breakpoint_mock = mocker.patch('gdt.RemoteCommand.init_breakpoints')
+        target_mock = mocker.patch('gdt.RemoteTargetCommand.add_target_command')
+        pid_mock = mocker.patch('gdt.RemoteTargetCommand.add_pid_command')
+        upload_mock = mocker.patch('gdt.RemoteTargetCommand.add_unit_test_commands')
+        breakpoint_mock = mocker.patch('gdt.RemoteTargetCommand.add_breakpoint_command')
 
         args = mock.sentinel
         args.breakpoints = 'breakpoints'
@@ -700,11 +728,11 @@ class TestRemoteCommand(object):
         breakpoint_mock.assert_called_once_with(args.breakpoints)
         gen_mock.assert_called_once()
 
-    def test_init_unit_test(self, remote_cmd, telnet, mocker):
+    def test_add_unit_test_commands(self, remote_cmd, telnet, mocker):
         assert 'upload' not in remote_cmd.opts
         assert 'gtest_args' not in remote_cmd.opts
 
-        remote_cmd.init_unit_test()
+        remote_cmd.add_unit_test_commands()
 
         expected_value = PROGRAM_PATH + " " + os.path.join(gdt.UNITTEST_OUTPUT_DIR, PROGRAM_BASENAME)
 
@@ -719,40 +747,40 @@ class TestRemoteCommand(object):
              mocker.call('mkdir -p ' + gdt.UNITTEST_OUTPUT_DIR)]
         )
 
-    def test_init_breakpoints_with_file(self, remote_cmd, mocker):
+    def test_add_breakpoint_command_with_file(self, remote_cmd, mocker):
         assert 'breakpoint' not in remote_cmd.opts
         args = mocker.MagicMock()
         args.name = '/breakpoint_file'
 
-        remote_cmd.init_breakpoints(args)
+        remote_cmd.add_breakpoint_command(args)
 
         assert 'breakpoint' in remote_cmd.opts
         assert remote_cmd.opts['breakpoint'].prefix == 'source'
-        assert remote_cmd.opts['breakpoint'].value == '/breakpoint_file'
+        assert remote_cmd.opts['breakpoint'].value == args.name
 
-    def test_init_breakpoints_without_file(self, remote_cmd):
+    def test_add_breakpoint_command_without_file(self, remote_cmd):
         assert 'breakpoint' not in remote_cmd.opts
 
-        remote_cmd.init_breakpoints(None)
+        remote_cmd.add_breakpoint_command(None)
 
         assert 'breakpoint' not in remote_cmd.opts
 
-    def test_init_pid_with_running_process(self, remote_cmd):
+    def test_add_pid_command_with_running_process(self, remote_cmd):
         assert 'pid' not in remote_cmd.opts
 
-        remote_cmd.init_pid()
+        remote_cmd.add_pid_command()
 
         remote_cmd.telnet.get_pid_of.assert_called_once_with(remote_cmd.program_name)
         assert 'pid' in remote_cmd.opts
         assert remote_cmd.opts['pid'].prefix == 'attach'
         assert remote_cmd.opts['pid'].value == PID
 
-    def test_init_pid_with_unknown_process(self, remote_cmd, telnet):
+    def test_add_pid_command_with_unknown_process(self, remote_cmd, telnet):
         telnet().get_pid_of.return_value = None
         remote_cmd.program_name = 'unknown_program'
         assert 'pid' not in remote_cmd.opts
 
-        remote_cmd.init_pid()
+        remote_cmd.add_pid_command()
 
         remote_cmd.telnet.get_pid_of.assert_called_once_with(remote_cmd.program_name)
         assert 'pid' not in remote_cmd.opts
@@ -761,14 +789,14 @@ class TestRemoteCommand(object):
         (False, 'target extended-remote'),
         (True, 'target qnx')
     ])
-    def test_init_target(self, remote_cmd, is_qnx_target, prefix):
+    def test_add_target_command(self, remote_cmd, is_qnx_target, prefix):
         target = gdt.Target(gdt.DEFAULT_IP, gdt.DEFAULT_USER, gdt.DEFAULT_PASSWORD, gdt.DEFAULT_DEBUG_PORT)
         remote_cmd.program_name = PROGRAM_NAME
         remote_cmd.is_qnx_target = is_qnx_target
         remote_cmd.target = gdt.Target(gdt.DEFAULT_IP, gdt.DEFAULT_USER, gdt.DEFAULT_PASSWORD, gdt.DEFAULT_DEBUG_PORT)
         remote_cmd.opts.clear()
 
-        remote_cmd.init_target()
+        remote_cmd.add_target_command()
 
         assert 'target' in remote_cmd.opts
         assert remote_cmd.opts['target'].prefix == prefix
